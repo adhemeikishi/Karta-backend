@@ -1,0 +1,64 @@
+server:
+  port: ${SERVER_PORT:8080}
+  # Ne jamais exposer les stack traces / détails d'erreur au client (surtout en prod).
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+
+spring:
+  application:
+    name: qr-menu-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/qrmenu}
+    username: ${DB_USER:qrmenu}
+    password: ${DB_PASSWORD:qrmenu}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Seul /actuator/health est utile publiquement (healthcheck Docker/monitoring).
+        # /info est désactivé par défaut faute de contenu utile - pas de fuite superflue.
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+# Configuration spécifique au produit QR Menu.
+# base-url = domaine utilisé DANS le QR (ne jamais hardcoder ça dans le code Java).
+# AUCUNE valeur par défaut ici volontairement : un QR généré avec un mauvais domaine
+# (ex: localhost oublié en prod) est un bug silencieux et coûteux - le démarrage doit
+# échouer explicitement plutôt que produire des QR inutilisables. Le profil dev fournit
+# son propre défaut pratique (voir application-dev.yml).
+qr:
+  base-url: ${QR_BASE_URL}
+  # Chemin exposé publiquement pour la redirection, ex: /q/{code}
+  redirect-path: /q
+  image:
+    default-png-size: 1000
+
+# Auth minimale pour la V1 (basic auth sur /api/admin/**).
+# AUCUNE valeur par défaut ici volontairement : si ADMIN_USERNAME/ADMIN_PASSWORD
+# ne sont pas définis, le démarrage échoue plutôt que de tourner avec un mot de
+# passe faible/connu par défaut. Les profils dev/test fournissent leurs propres
+# valeurs de développement (voir application-dev.yml / application-test.yml).
+admin:
+  username: ${ADMIN_USERNAME}
+  password: ${ADMIN_PASSWORD}
+

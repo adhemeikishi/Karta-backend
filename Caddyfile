@@ -1,0 +1,18 @@
+# Caddy gère automatiquement le certificat Let's Encrypt et le renouvellement.
+# Le HTTP est automatiquement redirigé vers HTTPS par Caddy (comportement par défaut).
+#
+# Remplacer qr.mondomaine.fr par le vrai domaine avant déploiement,
+# et remplacer l'email par une adresse réelle (utilisée par Let's Encrypt
+# pour les notifications d'expiration).
+
+qr.mondomaine.fr {
+    reverse_proxy backend:8080
+
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+}

@@ -1,0 +1,26 @@
+# Profil de production.
+# AUCUN mot de passe/secret par défaut ici : ADMIN_USERNAME, ADMIN_PASSWORD, DB_URL,
+# DB_USER, DB_PASSWORD, QR_BASE_URL doivent être fournis par l'environnement
+# (fichier .env non commité, secrets du serveur, etc.). Si l'une de ces variables
+# manque, le démarrage échoue explicitement plutôt que de tourner avec une valeur
+# faible/connue.
+
+server:
+  # Nécessaire si l'app tourne derrière un reverse proxy (nginx/Caddy) qui gère HTTPS
+  # (voir procédure de déploiement) : permet à Spring de connaître le vrai protocole/IP client.
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.qrmenu: INFO
+    org.springframework.security: WARN

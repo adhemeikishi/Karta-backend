@@ -1,0 +1,19 @@
+# Profil de développement local uniquement.
+# Valeurs pratiques par défaut - JAMAIS utilisées en production (voir application-prod.yml).
+# Activé par défaut si SPRING_PROFILES_ACTIVE n'est pas défini (voir application.yml).
+
+admin:
+  username: ${ADMIN_USERNAME:admin}
+  password: ${ADMIN_PASSWORD:dev-only-changeme}
+
+qr:
+  base-url: ${QR_BASE_URL:http://localhost:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

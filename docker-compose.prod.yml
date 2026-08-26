@@ -1,0 +1,72 @@
+# Déploiement de production - VPS + Docker.
+# Toutes les valeurs sensibles viennent du fichier .env (jamais commité - voir .env.example).
+#
+# Usage sur le VPS:
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: qrmenu-postgres-prod
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - qrmenu-postgres-prod-data:/var/lib/postgresql/data
+    # Pas de port exposé publiquement: seul le service "backend" (sur le même réseau
+    # Docker interne) peut atteindre PostgreSQL. Accès non public par conception.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: qrmenu-backend-prod
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      QR_BASE_URL: ${QR_BASE_URL}
+    # Pas de port exposé directement sur l'hôte: uniquement accessible via Caddy (HTTPS).
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: qrmenu-caddy-prod
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - qrmenu-caddy-data:/data
+      - qrmenu-caddy-config:/config
+
+volumes:
+  qrmenu-postgres-prod-data:
+  qrmenu-caddy-data:
+  qrmenu-caddy-config:

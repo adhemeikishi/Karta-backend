@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:qrmenu;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+qr:
+  base-url: http://localhost:8080
+
+admin:
+  username: admin
+  password: test-password
