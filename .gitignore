@@ -22,3 +22,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Fichiers parasites à la racine (le vrai config VS Code vit dans admin-frontend/.vscode/)
+/extensions.json
+/launch.json
+/tasks.json
+/package-lock.json
+
+# Config Claude personnelle (settings.json partagé reste versionné)
+/.claude/settings.local.json
