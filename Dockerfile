@@ -13,8 +13,15 @@ RUN --mount=type=cache,target=/root/.m2 mvn -q -e -B clean package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Utilisateur non-root pour l'exécution du conteneur
-RUN addgroup -S qrmenu && adduser -S qrmenu -G qrmenu
+# Utilisateur non-root pour l'exécution du conteneur.
+# Répertoire de stockage des fichiers de menu (PDF BASIC) : créé et attribué à
+# l'utilisateur 'qrmenu' AVANT le montage du volume, pour qu'un volume Docker vide
+# hérite de ces droits (sinon il serait root:root et non inscriptible).
+# Permissions minimales (700) : seul le backend lit/écrit ces fichiers.
+RUN addgroup -S qrmenu && adduser -S qrmenu -G qrmenu \
+    && mkdir -p /var/lib/qrmenu/storage \
+    && chown -R qrmenu:qrmenu /var/lib/qrmenu \
+    && chmod 700 /var/lib/qrmenu/storage
 USER qrmenu
 
 COPY --from=build /build/target/*.jar app.jar

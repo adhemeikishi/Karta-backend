@@ -47,6 +47,15 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       QR_BASE_URL: ${QR_BASE_URL}
+      # Répertoire de stockage des PDF de menu DANS le conteneur. Par défaut, le
+      # point de montage préparé par le Dockerfile. Surchargeable via .env, mais
+      # tout autre chemin impose d'adapter aussi backend/Dockerfile (mkdir/chown).
+      STORAGE_DIR: ${STORAGE_DIR:-/var/lib/qrmenu/storage}
+    volumes:
+      # Persistance des fichiers de menu (PDF BASIC). Volume nommé : survit à
+      # `docker compose up --build`, au restart et à la recréation du conteneur.
+      # Seul un `docker compose down -v` (ou `docker volume rm`) le détruit.
+      - qrmenu-menu-storage:${STORAGE_DIR:-/var/lib/qrmenu/storage}
     # Pas de port exposé directement sur l'hôte: uniquement accessible via Caddy (HTTPS).
     expose:
       - "8080"
@@ -70,3 +79,6 @@ volumes:
   qrmenu-postgres-prod-data:
   qrmenu-caddy-data:
   qrmenu-caddy-config:
+  # Fichiers de menu (PDF BASIC). À sauvegarder EN PLUS de PostgreSQL : la base ne
+  # contient que des références (media_assets), pas les fichiers eux-mêmes.
+  qrmenu-menu-storage:

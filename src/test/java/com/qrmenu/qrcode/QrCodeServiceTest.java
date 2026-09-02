@@ -2,6 +2,7 @@ package com.qrmenu.qrcode;
 
 import com.qrmenu.common.InvalidUrlException;
 import com.qrmenu.restaurant.Restaurant;
+import com.qrmenu.restaurant.RestaurantOffer;
 import com.qrmenu.restaurant.RestaurantService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,7 @@ class QrCodeServiceTest {
 
     @Test
     void createsQrCodeWithGeneratedOpaqueCode() {
-        Restaurant restaurant = restaurantService.create("Snack Test");
+        Restaurant restaurant = restaurantService.create("Snack Test", RestaurantOffer.BASIC);
 
         QrCode qrCode = qrCodeService.create(restaurant.getId(), "QR entrée", "https://example.com/menu.pdf");
 
@@ -40,7 +41,7 @@ class QrCodeServiceTest {
 
     @Test
     void generatesUniqueCodesAcrossManyQrCodes() {
-        Restaurant restaurant = restaurantService.create("Snack Unicité");
+        Restaurant restaurant = restaurantService.create("Snack Unicité", RestaurantOffer.BASIC);
         Set<String> codes = new HashSet<>();
 
         for (int i = 0; i < 50; i++) {
@@ -51,7 +52,7 @@ class QrCodeServiceTest {
 
     @Test
     void rejectsDangerousDestinationUrl() {
-        Restaurant restaurant = restaurantService.create("Snack Sécurité");
+        Restaurant restaurant = restaurantService.create("Snack Sécurité", RestaurantOffer.BASIC);
 
         assertThatThrownBy(() ->
                 qrCodeService.create(restaurant.getId(), "QR", "javascript:alert(1)")
@@ -60,7 +61,7 @@ class QrCodeServiceTest {
 
     @Test
     void updatesDestinationWithoutChangingTheCode() {
-        Restaurant restaurant = restaurantService.create("Snack Update");
+        Restaurant restaurant = restaurantService.create("Snack Update", RestaurantOffer.BASIC);
         QrCode qrCode = qrCodeService.create(restaurant.getId(), "QR", "https://example.com/menu-v1.pdf");
         String originalCode = qrCode.getCode();
 
@@ -72,7 +73,7 @@ class QrCodeServiceTest {
 
     @Test
     void activatesAndDeactivatesQrCode() {
-        Restaurant restaurant = restaurantService.create("Snack Activation");
+        Restaurant restaurant = restaurantService.create("Snack Activation", RestaurantOffer.BASIC);
         QrCode qrCode = qrCodeService.create(restaurant.getId(), "QR", "https://example.com/menu.pdf");
 
         QrCode deactivated = qrCodeService.deactivate(qrCode.getId());

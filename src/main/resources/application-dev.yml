@@ -9,6 +9,10 @@ admin:
 qr:
   base-url: ${QR_BASE_URL:http://localhost:8080}
 
+# Répertoire de stockage local des uploads en développement (créé au besoin).
+storage:
+  dir: ${STORAGE_DIR:${java.io.tmpdir}/karta-storage-dev}
+
 # Autorise le back-office Angular (ng serve, autre origine en dev) à appeler l'API admin.
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}

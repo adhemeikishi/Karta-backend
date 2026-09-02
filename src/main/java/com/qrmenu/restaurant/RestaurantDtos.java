@@ -1,6 +1,7 @@
 package com.qrmenu.restaurant;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -14,7 +15,10 @@ public class RestaurantDtos {
     public record CreateRestaurantRequest(
             @NotBlank(message = "name is required")
             @Size(max = 255)
-            String name
+            String name,
+
+            @NotNull(message = "offer is required")
+            RestaurantOffer offer
     ) {
     }
 
@@ -25,9 +29,16 @@ public class RestaurantDtos {
     ) {
     }
 
+    public record ChangeOfferRequest(
+            @NotNull(message = "offer is required")
+            RestaurantOffer offer
+    ) {
+    }
+
     public record RestaurantResponse(
             UUID id,
             String name,
+            RestaurantOffer offer,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
@@ -35,6 +46,7 @@ public class RestaurantDtos {
             return new RestaurantResponse(
                     restaurant.getId(),
                     restaurant.getName(),
+                    restaurant.getOffer(),
                     restaurant.getCreatedAt(),
                     restaurant.getUpdatedAt()
             );
@@ -48,6 +60,7 @@ public class RestaurantDtos {
     public record RestaurantSummaryResponse(
             UUID id,
             String name,
+            RestaurantOffer offer,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt,
             long qrCodeCount,

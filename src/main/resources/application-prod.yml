@@ -1,9 +1,13 @@
 # Profil de production.
 # AUCUN mot de passe/secret par défaut ici : ADMIN_USERNAME, ADMIN_PASSWORD, DB_URL,
-# DB_USER, DB_PASSWORD, QR_BASE_URL doivent être fournis par l'environnement
+# DB_USER, DB_PASSWORD, QR_BASE_URL, STORAGE_DIR doivent être fournis par l'environnement
 # (fichier .env non commité, secrets du serveur, etc.). Si l'une de ces variables
 # manque, le démarrage échoue explicitement plutôt que de tourner avec une valeur
 # faible/connue.
+# STORAGE_DIR : répertoire des fichiers de menu (PDF BASIC), jamais en base.
+# En Docker (docker-compose.prod.yml), il pointe vers /var/lib/qrmenu/storage, sur
+# lequel est monté le volume nommé persistant "qrmenu-menu-storage" : les PDF
+# survivent aux redéploiements. Sauvegarde dédiée requise - voir docs/DEPLOYMENT.md.
 
 server:
   # Nécessaire si l'app tourne derrière un reverse proxy (nginx/Caddy) qui gère HTTPS

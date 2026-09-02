@@ -1,0 +1,80 @@
+<!--/*
+  Socle commun à tous les presets Karta : tokens de la direction artistique,
+  reset et primitives typographiques.
+
+  Un preset importe ce fragment puis définit sa propre mise en page. Aucun
+  JavaScript, aucune police distante : le menu est scanné en 4G devant une
+  table, il doit s'afficher immédiatement.
+*/-->
+<th:block th:fragment="tokens" xmlns:th="http://www.thymeleaf.org">
+  <style>
+    :root {
+      --k-charcoal: #131312;
+      --k-persimmon: #f05a00;
+      --k-ivory: #f6f6f6;
+      --k-white: #ffffff;
+      --k-border: #e6e6e4;
+      --k-ink-600: #57564f;
+      --k-ink-400: #8c8b84;
+      --k-ink-100: #eeeee9;
+
+      --k-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+        Arial, "Noto Sans", sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--k-ivory);
+      color: var(--k-charcoal);
+      font-family: var(--k-font);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1,
+    h2,
+    p,
+    ul {
+      margin: 0;
+      padding: 0;
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    /* Toute chaîne saisie par l'administrateur peut être longue et sans espace :
+       on garantit qu'aucun mot ne provoque de débordement horizontal. */
+    .k-wrap {
+      overflow-wrap: anywhere;
+    }
+
+    .k-eyebrow {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--k-persimmon);
+    }
+
+    .k-tnum {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</th:block>

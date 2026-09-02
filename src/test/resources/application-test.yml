@@ -17,6 +17,10 @@ spring:
 qr:
   base-url: http://localhost:8080
 
+# Répertoire de stockage isolé pour les tests (temp système).
+storage:
+  dir: ${java.io.tmpdir}/karta-storage-test
+
 admin:
   username: admin
   password: test-password

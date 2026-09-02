@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<!--/*
+  Preset CLASSIC — fondation du rendu Karta.
+
+  Colonne unique lisible, hiérarchie catégorie > plat > prix, prix toujours
+  aligné à droite et en chiffres tabulaires pour être comparable d'un coup d'œil.
+  Le persimmon reste un accent (filet, eyebrow), jamais un aplat : le menu doit
+  rester le sujet.
+*/-->
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <!-- Évite une requête /favicon.ico inutile (404) sur un réseau mobile. -->
+    <link rel="icon" href="data:," />
+    <title th:text="${menu.restaurantName} + ' — Menu'">Menu</title>
+    <th:block th:replace="~{menu/base :: tokens}"></th:block>
+    <style>
+      .sheet {
+        max-width: 34rem;
+        margin: 0 auto;
+        background-color: var(--k-white);
+        min-height: 100vh;
+      }
+
+      /* --- Bandeau d'aperçu (jamais rendu publiquement) --------------------- */
+      .preview-bar {
+        background-color: var(--k-charcoal);
+        color: var(--k-white);
+        padding: 0.625rem 1.25rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 600;
+        text-align: center;
+      }
+      .preview-bar span {
+        color: var(--k-persimmon);
+      }
+
+      /* --- En-tête ---------------------------------------------------------- */
+      .header {
+        padding: 2.5rem 1.25rem 2rem;
+        border-bottom: 1px solid var(--k-border);
+      }
+      .header-tick {
+        width: 1.75rem;
+        height: 3px;
+        background-color: var(--k-persimmon);
+        margin-bottom: 1rem;
+      }
+      .restaurant-name {
+        font-size: 1.75rem;
+        line-height: 1.15;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      .header-note {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--k-ink-400);
+      }
+
+      /* --- Catégories ------------------------------------------------------- */
+      .categories {
+        padding: 0 1.25rem 3rem;
+      }
+      .category {
+        padding-top: 2.5rem;
+      }
+      .category-name {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--k-charcoal);
+        padding-bottom: 0.625rem;
+        border-bottom: 1px solid var(--k-charcoal);
+      }
+      .category-description {
+        margin-top: 0.75rem;
+        font-size: 0.875rem;
+        color: var(--k-ink-600);
+      }
+
+      /* --- Plats ------------------------------------------------------------ */
+      .item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.875rem;
+        padding: 1.125rem 0;
+        border-bottom: 1px solid var(--k-border);
+      }
+      .item:last-child {
+        border-bottom: none;
+      }
+      .item-thumb {
+        width: 3.5rem;
+        height: 3.5rem;
+        flex-shrink: 0;
+        border-radius: 6px;
+        object-fit: cover;
+        background-color: var(--k-ink-100);
+      }
+      .item-body {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .item-name {
+        font-size: 1rem;
+        font-weight: 550;
+        line-height: 1.35;
+      }
+      .item-description {
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+        line-height: 1.45;
+        color: var(--k-ink-600);
+      }
+      .item-price {
+        flex-shrink: 0;
+        font-size: 1rem;
+        font-weight: 650;
+        white-space: nowrap;
+        padding-top: 0.0625rem;
+      }
+
+      .item-flag {
+        display: inline-block;
+        margin-top: 0.5rem;
+        padding: 0.125rem 0.4375rem;
+        border-radius: 3px;
+        background-color: var(--k-ink-100);
+        color: var(--k-ink-600);
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      /* Indisponible : atténué mais toujours lisible — le plat reste au menu. */
+      .item.is-unavailable .item-name,
+      .item.is-unavailable .item-description,
+      .item.is-unavailable .item-price {
+        color: var(--k-ink-400);
+      }
+      .item.is-unavailable .item-price {
+        text-decoration: line-through;
+      }
+      .item.is-unavailable .item-thumb {
+        opacity: 0.5;
+      }
+
+      /* --- États et pied ---------------------------------------------------- */
+      .empty {
+        padding: 4rem 1.25rem;
+        text-align: center;
+        color: var(--k-ink-400);
+        font-size: 0.9375rem;
+      }
+      .footer {
+        padding: 1.75rem 1.25rem 2.5rem;
+        border-top: 1px solid var(--k-border);
+        text-align: center;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: var(--k-ink-400);
+      }
+      .footer b {
+        color: var(--k-charcoal);
+        font-weight: 700;
+      }
+
+      /* --- Tablette / desktop ----------------------------------------------- */
+      @media (min-width: 768px) {
+        .sheet {
+          max-width: 40rem;
+          min-height: 100vh;
+          border-left: 1px solid var(--k-border);
+          border-right: 1px solid var(--k-border);
+        }
+        .header {
+          padding: 4rem 3rem 2.5rem;
+        }
+        .restaurant-name {
+          font-size: 2.25rem;
+        }
+        .categories {
+          padding: 0 3rem 4rem;
+        }
+        .category {
+          padding-top: 3rem;
+        }
+        .footer {
+          padding: 2rem 3rem 3rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="sheet">
+      <div class="preview-bar" th:if="${preview}">
+        Aperçu — <span>ce menu n'est pas publié</span>
+      </div>
+
+      <header class="header">
+        <div class="header-tick"></div>
+        <p class="k-eyebrow">Menu</p>
+        <h1 class="restaurant-name k-wrap" th:text="${menu.restaurantName}">Le Bistrot</h1>
+      </header>
+
+      <main>
+        <p class="empty" th:if="${menu.empty}">Le menu sera disponible très prochainement.</p>
+
+        <div class="categories" th:unless="${menu.empty}">
+          <section class="category" th:each="category : ${menu.categories}">
+            <h2 class="category-name k-wrap" th:text="${category.name}">Burgers</h2>
+            <p
+              class="category-description k-wrap"
+              th:if="${category.description != null}"
+              th:text="${category.description}"
+            >
+              Description
+            </p>
+
+            <ul>
+              <li
+                class="item"
+                th:each="item : ${category.items}"
+                th:classappend="${!item.available} ? 'is-unavailable'"
+              >
+                <img
+                  class="item-thumb"
+                  th:if="${item.imageUrl != null}"
+                  th:src="${item.imageUrl}"
+                  th:alt="${item.name}"
+                  loading="lazy"
+                  decoding="async"
+                />
+
+                <div class="item-body">
+                  <p class="item-name k-wrap" th:text="${item.name}">Cheeseburger</p>
+                  <p
+                    class="item-description k-wrap"
+                    th:if="${item.description != null}"
+                    th:text="${item.description}"
+                  >
+                    Steak, cheddar, salade
+                  </p>
+                  <span class="item-flag" th:unless="${item.available}">Indisponible</span>
+                </div>
+
+                <p class="item-price k-tnum" th:text="${item.priceLabel}">12,90 €</p>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </main>
+
+      <footer class="footer"><b>Karta</b></footer>
+    </div>
+  </body>
+</html>

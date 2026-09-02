@@ -14,6 +14,10 @@ public class Restaurant {
     @Column(nullable = false)
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private RestaurantOffer offer;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -24,9 +28,10 @@ public class Restaurant {
         // JPA
     }
 
-    public Restaurant(String name) {
+    public Restaurant(String name, RestaurantOffer offer) {
         this.id = UUID.randomUUID();
         this.name = name;
+        this.offer = offer;
         OffsetDateTime now = OffsetDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
@@ -37,12 +42,21 @@ public class Restaurant {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    public void changeOffer(RestaurantOffer newOffer) {
+        this.offer = newOffer;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
     public UUID getId() {
         return id;
     }
 
     public String getName() {
         return name;
+    }
+
+    public RestaurantOffer getOffer() {
+        return offer;
     }
 
     public OffsetDateTime getCreatedAt() {

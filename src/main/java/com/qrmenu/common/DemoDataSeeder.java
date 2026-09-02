@@ -3,6 +3,7 @@ package com.qrmenu.common;
 import com.qrmenu.qrcode.QrCode;
 import com.qrmenu.qrcode.QrCodeService;
 import com.qrmenu.restaurant.Restaurant;
+import com.qrmenu.restaurant.RestaurantOffer;
 import com.qrmenu.restaurant.RestaurantRepository;
 import com.qrmenu.restaurant.RestaurantService;
 import org.slf4j.Logger;
@@ -47,7 +48,7 @@ public class DemoDataSeeder implements CommandLineRunner {
             return;
         }
 
-        Restaurant restaurant = restaurantService.create(DEMO_RESTAURANT_NAME);
+        Restaurant restaurant = restaurantService.create(DEMO_RESTAURANT_NAME, RestaurantOffer.BASIC);
         QrCode qrCode = qrCodeService.create(restaurant.getId(), "QR principal", DEMO_DESTINATION_URL);
 
         log.info("=== Données de démo créées ===");

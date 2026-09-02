@@ -14,6 +14,9 @@ public interface QrCodeRepository extends JpaRepository<QrCode, UUID> {
 
     List<QrCode> findByRestaurantId(UUID restaurantId);
 
+    /** Karta V1 : 1 restaurant = 1 QR. Utilisé pour recalculer la destination effective. */
+    Optional<QrCode> findFirstByRestaurantId(UUID restaurantId);
+
     long countByRestaurantId(UUID restaurantId);
 
     long countByRestaurantIdAndActive(UUID restaurantId, boolean active);

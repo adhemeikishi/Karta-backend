@@ -1,11 +1,15 @@
 package com.qrmenu.redirect;
 
+import com.qrmenu.menu.MenuDtos.MenuResponse;
+import com.qrmenu.menu.MenuService;
 import com.qrmenu.qrcode.QrCode;
 import com.qrmenu.qrcode.QrCodeRepository;
 import com.qrmenu.qrcode.QrCodeService;
 import com.qrmenu.qrscan.QrScanRepository;
 import com.qrmenu.restaurant.Restaurant;
+import com.qrmenu.restaurant.RestaurantOffer;
 import com.qrmenu.restaurant.RestaurantService;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -40,6 +44,12 @@ class RedirectControllerTest {
 
     @Autowired
     private QrScanRepository qrScanRepository;
+
+    @Autowired
+    private MenuService menuService;
+
+    private static final byte[] VALID_PDF =
+            "%PDF-1.4\n%%EOF".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
     @Test
     void activeQrCodeRedirectsWith302() throws Exception {
@@ -80,8 +90,34 @@ class RedirectControllerTest {
         );
     }
 
+    @Test
+    void redirectsToPublishedPdfMenu() throws Exception {
+        Restaurant restaurant = restaurantService.create("Redirect PDF " + System.nanoTime(), RestaurantOffer.BASIC);
+        QrCode qr = qrCodeService.create(restaurant.getId(), "QR", "https://example.com/fallback.pdf");
+
+        MenuResponse uploaded = menuService.uploadPdf(restaurant.getId(), VALID_PDF, "application/pdf", "carte.pdf");
+        menuService.publish(restaurant.getId());
+
+        mockMvc.perform(get("/q/{code}", qr.getCode()))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", Matchers.endsWith("/media/" + uploaded.pdf().assetId())));
+    }
+
+    @Test
+    void redirectsToFallbackWhenMenuNotPublished() throws Exception {
+        Restaurant restaurant = restaurantService.create("Redirect fallback " + System.nanoTime(), RestaurantOffer.BASIC);
+        QrCode qr = qrCodeService.create(restaurant.getId(), "QR", "https://example.com/fallback.pdf");
+
+        // PDF uploadé mais pas publié -> le QR ne doit pas être touché.
+        menuService.uploadPdf(restaurant.getId(), VALID_PDF, "application/pdf", "carte.pdf");
+
+        mockMvc.perform(get("/q/{code}", qr.getCode()))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "https://example.com/fallback.pdf"));
+    }
+
     private QrCode createActiveQrCode(String destinationUrl) {
-        Restaurant restaurant = restaurantService.create("Restaurant Test " + System.nanoTime());
+        Restaurant restaurant = restaurantService.create("Restaurant Test " + System.nanoTime(), RestaurantOffer.BASIC);
         return qrCodeService.create(restaurant.getId(), "QR test", destinationUrl);
     }
 }

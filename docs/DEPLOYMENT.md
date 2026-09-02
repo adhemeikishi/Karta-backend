@@ -77,6 +77,9 @@ Remplis avec de vraies valeurs fortes, en particulier :
 - `DB_PASSWORD` — génère-en un avec `openssl rand -base64 24`
 - `ADMIN_PASSWORD` — idem
 - `QR_BASE_URL=https://qr.mondomaine.fr` (le vrai domaine, en https)
+- `STORAGE_DIR` — **laisser la valeur par défaut** (`/var/lib/qrmenu/storage`). C'est
+  le chemin, dans le conteneur backend, où sont stockés les PDF de menu ; un volume
+  Docker persistant y est monté (voir §12).
 
 ## 5. Adapter le Caddyfile à ton vrai domaine
 
@@ -122,6 +125,12 @@ curl https://qr.mondomaine.fr/actuator/health
 
 Doit renvoyer `{"status":"UP"}`, en HTTPS, avec un certificat valide.
 
+Vérifie aussi que le volume de stockage des menus a bien été créé :
+
+```bash
+docker volume ls | grep qrmenu-menu-storage
+```
+
 ## 8. Mettre en place les sauvegardes automatiques
 
 Sur le VPS :
@@ -139,21 +148,27 @@ Puis programme-le quotidiennement via cron :
 crontab -e
 ```
 
-Ajoute cette ligne (backup tous les jours à 3h du matin) :
+Ajoute ces lignes (backups tous les jours à 3h du matin) :
 
 ```
 0 3 * * * cd /home/TON_USER/qr-menu && ./scripts/backup-postgres.sh >> /var/log/qrmenu-backup.log 2>&1
+5 3 * * * cd /home/TON_USER/qr-menu && ./scripts/backup-storage.sh  >> /var/log/qrmenu-backup.log 2>&1
 ```
+
+> **Les deux sont indispensables.** `backup-postgres.sh` sauvegarde la base ;
+> `backup-storage.sh` sauvegarde les **fichiers PDF de menu** (volume Docker,
+> hors base). Restaurer l'une sans l'autre laisse des QR qui pointent vers des
+> PDF manquants. Voir §12.
 
 ### Tester la restauration (obligatoire — une sauvegarde jamais testée n'est pas fiable)
 
 ```bash
+# Base : restaure vers une base de test (jamais la prod), sans risque.
 ./scripts/restore-postgres.sh /var/backups/qrmenu/qrmenu_2026-08-23_03-00-00.sql.gz
 ```
 
-Par défaut, ça restaure vers une base de test (`qrmenu_restore_test`), jamais
-vers la prod, donc sans risque. Vérifie que le compte de restaurants affiché
-à la fin correspond à ce que tu attends.
+Vérifie que le compte de restaurants affiché à la fin correspond à ce que tu
+attends. Pour la restauration des fichiers de menu, voir §12.
 
 ## 9. Créer ton premier vrai restaurant
 
@@ -162,7 +177,7 @@ Depuis ton PC (ou le VPS) :
 ```bash
 curl -u admin:TON_MOT_DE_PASSE -X POST https://qr.mondomaine.fr/api/admin/restaurants \
   -H "Content-Type: application/json" \
-  -d '{"name":"Nom du restaurant"}'
+  -d '{"name":"Nom du restaurant","offer":"BASIC"}'
 ```
 
 Récupère l'`id` renvoyé, puis crée son QR :
@@ -173,7 +188,17 @@ curl -u admin:TON_MOT_DE_PASSE -X POST https://qr.mondomaine.fr/api/admin/restau
   -d '{"name":"QR principal","destinationUrl":"https://url-du-vrai-menu"}'
 ```
 
-Télécharge le PNG :
+Pour un menu BASIC, envoie le PDF puis publie-le (le QR pointera alors vers ce PDF,
+sans jamais changer) :
+
+```bash
+curl -u admin:TON_MOT_DE_PASSE -F "file=@menu.pdf;type=application/pdf" \
+  https://qr.mondomaine.fr/api/admin/restaurants/ID_RESTAURANT/menu/pdf
+curl -u admin:TON_MOT_DE_PASSE -X PUT \
+  https://qr.mondomaine.fr/api/admin/restaurants/ID_RESTAURANT/menu/publish
+```
+
+Télécharge le PNG du QR :
 
 ```bash
 curl -u admin:TON_MOT_DE_PASSE https://qr.mondomaine.fr/api/admin/qr-codes/ID_QR/image.png -o qr-final.png
@@ -202,6 +227,84 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Flyway applique automatiquement les nouvelles migrations au démarrage.
+Les **fichiers PDF de menu ne sont pas affectés** : ils vivent sur le volume
+`qrmenu-menu-storage`, qui n'est pas recréé par `up --build` (voir §12).
+
+---
+
+## 12. Stockage des fichiers de menu (PDF)
+
+### Emplacement
+
+- **Dans le conteneur backend** : `STORAGE_DIR` (`/var/lib/qrmenu/storage` par défaut).
+- **Sur l'hôte** : un volume Docker nommé **`qrmenu-menu-storage`**, géré par Docker
+  (`/var/lib/docker/volumes/qr-menu_qrmenu-menu-storage/_data` sur le VPS, mais on
+  n'y touche jamais directement).
+- Arborescence interne : `{restaurantId}/{assetId}.pdf`. Le nom de fichier est un
+  UUID généré côté serveur — jamais le nom envoyé par le navigateur.
+- La base de données ne stocke **que des références** (`media_assets`), jamais le
+  contenu des fichiers.
+
+### Persistance
+
+Le volume est **nommé** (pas un bind-mount, pas `tmpfs`). Il survit à :
+
+- un `docker compose -f docker-compose.prod.yml restart backend` ;
+- un `docker compose -f docker-compose.prod.yml up -d --build` (rebuild de l'image) ;
+- un `docker compose -f docker-compose.prod.yml down` puis `up` ;
+- la suppression / recréation du conteneur backend.
+
+Il n'est détruit **que** par une action explicite :
+`docker compose ... down -v`, ou `docker volume rm qrmenu-menu-storage`.
+
+Vérification manuelle (à faire une fois après le premier déploiement) :
+
+```bash
+# 1. Upload + publication d'un PDF de test (voir §9), noter l'URL /media/<id> renvoyée
+# 2. Forcer une recréation complète du backend
+docker compose -f docker-compose.prod.yml up -d --build --force-recreate backend
+# 3. Le PDF doit toujours répondre
+curl -I https://qr.mondomaine.fr/media/<id>   # -> 200, application/pdf
+```
+
+### Sauvegarde / restauration
+
+Sauvegarde (en parallèle de la base, voir §8) :
+
+```bash
+./scripts/backup-storage.sh
+# -> /var/backups/qrmenu/qrmenu-menu-storage_<date>.tar.gz
+```
+
+Restauration (arrêter le backend pendant l'opération) :
+
+```bash
+docker compose -f docker-compose.prod.yml stop backend
+./scripts/restore-storage.sh /var/backups/qrmenu/qrmenu-menu-storage_<date>.tar.gz
+docker compose -f docker-compose.prod.yml start backend
+```
+
+> Après une restauration de la base, restaure **le même jour** de fichiers, sinon
+> `media_assets` peut référencer des PDF absents (→ QR qui redirige vers un 404).
+
+### Points d'attention
+
+- **Ne jamais** faire `docker compose ... down -v` en production : `-v` supprime
+  tous les volumes, y compris les PDF de menu **et** la base.
+- Le volume n'est monté **que** dans le conteneur `backend`. Ni PostgreSQL ni
+  Caddy n'y ont accès.
+- **Caddy ne sert aucun fichier du disque** : sa config est uniquement
+  `reverse_proxy backend:8080`. Les PDF ne sont accessibles que via l'endpoint
+  applicatif `GET /media/{assetId}` (lookup par UUID en base, aucun chemin fourni
+  par le client, garde anti path-traversal dans `LocalFileStorage`).
+- Le répertoire appartient à l'utilisateur non-root `qrmenu` du conteneur, en
+  permissions `700`.
+- Surveiller l'espace disque du VPS : un PDF peut peser jusqu'à 10 Mo par
+  restaurant. `du -sh` sur le volume via
+  `docker run --rm -v qrmenu-menu-storage:/data:ro alpine du -sh /data`.
+- Changer `STORAGE_DIR` impose d'adapter `backend/Dockerfile` (le point de montage
+  doit exister dans l'image, appartenir à `qrmenu`) — sinon le conteneur ne
+  pourra pas écrire.
 
 ---
 

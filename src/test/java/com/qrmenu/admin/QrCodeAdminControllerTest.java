@@ -27,7 +27,7 @@ class QrCodeAdminControllerTest {
         String restaurantBody = mockMvc.perform(post("/api/admin/restaurants")
                         .with(SecurityMockMvcRequestPostProcessors.httpBasic("admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Resto QR Detail\"}"))
+                        .content("{\"name\":\"Resto QR Detail\",\"offer\":\"BASIC\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String restaurantId = com.jayway.jsonpath.JsonPath.read(restaurantBody, "$.id");

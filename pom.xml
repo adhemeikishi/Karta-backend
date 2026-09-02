@@ -28,6 +28,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!--
+            Rendu HTML du menu public. Le contenu affiché (nom du restaurant, plats,
+            descriptions) est saisi par l'administrateur : il DOIT être échappé
+            contextuellement. Thymeleaf le fait par défaut, une concaténation de chaînes
+            en Java serait une faille XSS à chaque oubli. Aucun JavaScript embarqué,
+            aucune librairie côté client.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
 
         <!-- JPA / PostgreSQL -->
         <dependency>

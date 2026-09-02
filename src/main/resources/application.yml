@@ -29,6 +29,14 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  servlet:
+    multipart:
+      # Le PDF de menu est limité à 10 Mo par MediaService (message d'erreur propre).
+      # Ces limites Spring sont volontairement plus larges : elles ne servent que de
+      # garde-fou contre un upload aberrant.
+      max-file-size: 15MB
+      max-request-size: 20MB
+
 management:
   endpoints:
     web:
@@ -61,4 +69,10 @@ qr:
 admin:
   username: ${ADMIN_USERNAME}
   password: ${ADMIN_PASSWORD}
+
+# Stockage des fichiers uploadés (PDF de menu). JAMAIS en base de données.
+# AUCUNE valeur par défaut ici volontairement : à fournir via l'environnement
+# (STORAGE_DIR). Les profils dev/test fournissent leur propre répertoire.
+storage:
+  dir: ${STORAGE_DIR}
 
