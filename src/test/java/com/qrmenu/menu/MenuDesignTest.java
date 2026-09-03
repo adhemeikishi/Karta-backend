@@ -71,14 +71,13 @@ class MenuDesignTest {
         return JsonPath.read(body, "$.id");
     }
 
-    private String createQr(String restaurantId) throws Exception {
-        String body = mockMvc.perform(post("/api/admin/restaurants/" + restaurantId + "/qr-codes")
-                        .with(httpBasic("admin", "test-password"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"QR\",\"destinationUrl\":\"https://example.com/fallback\"}"))
-                .andExpect(status().isCreated())
+    /** Le QR est créé automatiquement à la création du restaurant (createClient) : on le lit, on n'en crée pas un second. */
+    private String fetchQrCode(String restaurantId) throws Exception {
+        String body = mockMvc.perform(get("/api/admin/restaurants/" + restaurantId + "/qr-codes")
+                        .with(httpBasic("admin", "test-password")))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(body, "$.code");
+        return JsonPath.read(body, "$[0].code");
     }
 
     private String uploadImage(String restaurantId) throws Exception {
@@ -372,7 +371,6 @@ class MenuDesignTest {
     @Test
     void previewSaysWhenTheCardIsAlreadyOnline() throws Exception {
         String id = createClient("PRO");
-        createQr(id);
         saveMenu(id);
 
         mockMvc.perform(get(previewUrl(id)).with(httpBasic("admin", "test-password")))
@@ -393,7 +391,7 @@ class MenuDesignTest {
     @Test
     void thePublishedPageUsesExactlyTheSavedDesign() throws Exception {
         String id = createClient("PREMIUM");
-        String code = createQr(id);
+        String code = fetchQrCode(id);
         saveMenu(id);
 
         mockMvc.perform(put(designUrl(id))

@@ -24,3 +24,8 @@ storage:
 admin:
   username: admin
   password: test-password
+
+# KartaAI : aucune clé en test. Les tests utilisent un extracteur déterministe
+# (FakeMenuExtractor) et n'appellent JAMAIS d'API externe — donc aucun coût, aucun réseau.
+kartaai:
+  api-key: ""

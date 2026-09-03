@@ -308,6 +308,49 @@ docker compose -f docker-compose.prod.yml start backend
 
 ---
 
+## 13. KartaAI (extraction d'une carte PDF)
+
+KartaAI transforme la carte PDF d'un client PRO / PREMIUM en menu structuré, après
+relecture humaine. **Fonctionnalité optionnelle** : sans clé configurée, le reste du
+produit fonctionne normalement et l'analyse renvoie une erreur explicite.
+
+### Variables d'environnement
+
+| Variable | Obligatoire | Défaut | Rôle |
+| --- | --- | --- | --- |
+| `KARTA_AI_API_KEY` | pour activer KartaAI | *(vide = désactivé)* | Clé du fournisseur d'analyse |
+| `KARTA_AI_MODEL` | non | `claude-opus-5` | Modèle utilisé. **Configurable exprès** : les modèles évoluent plus vite que le code |
+| `KARTA_AI_BASE_URL` | non | `https://api.anthropic.com` | Point d'entrée de l'API |
+| `KARTA_AI_TIMEOUT_SECONDS` | non | `120` | Analyser une carte prend des dizaines de secondes |
+| `KARTA_AI_MAX_TOKENS` | non | `16000` | Plafond de la réponse |
+
+### Sécurité
+
+- La clé vit **uniquement côté serveur**, en variable d'environnement. Jamais dans le
+  code, jamais commitée, jamais journalisée, et elle n'atteint jamais le back-office
+  Angular : le navigateur n'appelle que `/api/admin/...`.
+- Le PDF analysé est toujours relu depuis le menu du client concerné. Aucun identifiant
+  de document n'est accepté depuis l'extérieur — impossible de faire analyser la carte
+  d'un autre restaurant.
+- Le JSON renvoyé par le modèle est traité comme une **entrée non fiable** : bornes,
+  longueurs, prix et devises sont assainis côté serveur avant d'atteindre la base.
+
+### Ce que KartaAI ne fait pas
+
+- il ne génère **aucun HTML** — le rendu reste celui du renderer existant ;
+- il ne **publie jamais** : après validation de la Review le menu est `READY`, la mise en
+  ligne reste une action distincte ;
+- il n'écrit **jamais** dans le menu avant validation. L'extraction ne touche que la table
+  `menu_drafts` : relancer une analyse sur une carte en ligne ne la modifie pas.
+
+### Coût
+
+Chaque analyse est un appel facturé au fournisseur. Le brouillon étant persisté, un
+rechargement de page ne redéclenche pas d'analyse ; une nouvelle analyse remplace la
+précédente.
+
+---
+
 ## Ce qui n'est PAS couvert ici (P1/P2 — plus tard)
 
 - Rate limiting sur l'API admin

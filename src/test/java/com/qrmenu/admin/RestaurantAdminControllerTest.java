@@ -65,6 +65,28 @@ class RestaurantAdminControllerTest {
                 .andExpect(jsonPath("$.offer").value("PREMIUM"));
     }
 
+    /**
+     * Règle produit : 1 restaurant = 1 QR permanent, créé automatiquement — jamais une
+     * action séparée du restaurateur.
+     */
+    @Test
+    void automaticallyCreatesTheRestaurantsUniqueQrCode() throws Exception {
+        String body = mockMvc.perform(post("/api/admin/restaurants")
+                        .with(SecurityMockMvcRequestPostProcessors.httpBasic("admin", "test-password"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Auto QR " + System.nanoTime() + "\",\"offer\":\"BASIC\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = com.jayway.jsonpath.JsonPath.read(body, "$.id");
+
+        mockMvc.perform(get("/api/admin/restaurants/" + id + "/qr-codes")
+                        .with(SecurityMockMvcRequestPostProcessors.httpBasic("admin", "test-password")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].active").value(true))
+                .andExpect(jsonPath("$[0].destinationUrl").exists());
+    }
+
     @Test
     void rejectsMissingOffer() throws Exception {
         mockMvc.perform(post("/api/admin/restaurants")
@@ -151,13 +173,12 @@ class RestaurantAdminControllerTest {
                 .andReturn().getResponse().getContentAsString();
         String id = com.jayway.jsonpath.JsonPath.read(body, "$.id");
 
-        String qrBody = mockMvc.perform(post("/api/admin/restaurants/" + id + "/qr-codes")
-                        .with(httpBasic("admin", "test-password"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"QR\",\"destinationUrl\":\"https://example.com/menu\"}"))
-                .andExpect(status().isCreated())
+        // Le QR est désormais créé automatiquement à la création du restaurant.
+        String qrBody = mockMvc.perform(get("/api/admin/restaurants/" + id + "/qr-codes")
+                        .with(httpBasic("admin", "test-password")))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        String code = com.jayway.jsonpath.JsonPath.read(qrBody, "$.code");
+        String code = com.jayway.jsonpath.JsonPath.read(qrBody, "$[0].code");
 
         mockMvc.perform(delete("/api/admin/restaurants/" + id)
                         .with(httpBasic("admin", "test-password")))

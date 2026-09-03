@@ -48,6 +48,7 @@ public class MenuService {
     private final PublicUrlBuilder urlBuilder;
     private final RestaurantService restaurantService;
     private final QrCodeRepository qrCodeRepository;
+    private final MenuDraftConsumer draftConsumer;
 
     public MenuService(
             MenuRepository menuRepository,
@@ -55,7 +56,8 @@ public class MenuService {
             MediaService mediaService,
             PublicUrlBuilder urlBuilder,
             RestaurantService restaurantService,
-            QrCodeRepository qrCodeRepository
+            QrCodeRepository qrCodeRepository,
+            MenuDraftConsumer draftConsumer
     ) {
         this.menuRepository = menuRepository;
         this.structureService = structureService;
@@ -63,6 +65,7 @@ public class MenuService {
         this.urlBuilder = urlBuilder;
         this.restaurantService = restaurantService;
         this.qrCodeRepository = qrCodeRepository;
+        this.draftConsumer = draftConsumer;
     }
 
     // ---------------------------------------------------------------- lecture
@@ -132,7 +135,15 @@ public class MenuService {
         structureService.replace(restaurant, menu, categories);
         menu.bumpVersion();
         menu.applyContentState(structureService.hasContent(menu.getId()));
-        return toResponse(restaurant, menuRepository.save(menu));
+        MenuResponse response = toResponse(restaurant, menuRepository.save(menu));
+
+        // Le menu est écrit : un éventuel brouillon KartaAI a rempli son office.
+        // Consommé en DERNIER, et dans cette transaction : si quoi que ce soit au-dessus
+        // échoue, le rollback rend son brouillon au restaurateur, qui reprend sa Review
+        // au lieu de tout ressaisir. Un brouillon perdu sur un menu non sauvegardé serait
+        // le pire des deux mondes.
+        draftConsumer.consume(restaurantId);
+        return response;
     }
 
     // ---------------------------------------------------------------- carte PDF (toutes offres)

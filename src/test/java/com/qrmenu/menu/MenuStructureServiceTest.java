@@ -70,6 +70,40 @@ class MenuStructureServiceTest {
         assertThat(menu.structure().categories()).isEmpty();
     }
 
+    /**
+     * Le chemin manuel (l'éditeur du studio) n'a jamais besoin d'un menu préexistant : le
+     * {@code PUT} qu'il envoie crée le menu au premier appel, exactement comme le fait
+     * KartaAI après Review. Un client PRO tout neuf peut donc créer sa carte entièrement
+     * à la main — sans passer par KartaAI, et sans {@link #createsStructuredMenuForProClient}
+     * (aucun {@code POST} de création préalable requis).
+     */
+    @Test
+    void manualEditorCanCreateTheMenuFromScratchWithoutAnyPriorMenuRow() {
+        Restaurant r = proRestaurant();
+        assertThat(menuRepository.findByRestaurantId(r.getId())).isEmpty(); // aucun menu en base
+
+        MenuResponse menu = menuService.saveStructure(r.getId(), List.of(
+                category("Entrées", item("Velouté de potiron", 890))));
+
+        assertThat(menuRepository.findByRestaurantId(r.getId())).isPresent();
+        assertThat(menu.type()).isEqualTo(MenuType.STRUCTURED);
+        assertThat(menu.structure().categories()).hasSize(1);
+        assertThat(menu.structure().categories().get(0).items().get(0).name())
+                .isEqualTo("Velouté de potiron");
+    }
+
+    /** Même garantie pour PREMIUM : l'accès au menu structuré ne distingue pas PRO/PREMIUM. */
+    @Test
+    void manualEditorCanCreateTheMenuFromScratchForPremiumToo() {
+        Restaurant premium = restaurantService.create("Resto PREMIUM " + System.nanoTime(), RestaurantOffer.PREMIUM);
+        assertThat(menuRepository.findByRestaurantId(premium.getId())).isEmpty();
+
+        MenuResponse menu = menuService.saveStructure(premium.getId(), List.of(
+                category("Entrées", item("Velouté de potiron", 890))));
+
+        assertThat(menu.structure().categories()).hasSize(1);
+    }
+
     @Test
     void aClientCanOnlyHaveOneMenu() {
         Restaurant r = proRestaurant();
@@ -218,6 +252,31 @@ class MenuStructureServiceTest {
         assertThatThrownBy(() -> menuService.saveStructure(r.getId(),
                 List.of(category("Burgers", item("Cheeseburger", null)))))
                 .isInstanceOf(InvalidMenuException.class);
+    }
+
+    /**
+     * Atomicité de l'enregistrement : un payload avec un item invalide au milieu d'items
+     * par ailleurs valides ne doit rien écrire — ni le nouveau contenu, ni une partie de
+     * l'ancien remplacée. Représentatif du studio d'édition, qui envoie tout le document
+     * en un seul {@code PUT} (voir {@code MenuEditorComponent}, admin-frontend).
+     */
+    @Test
+    void rejectsWholePayloadAtomicallyWhenOneItemIsInvalid() {
+        Restaurant r = proRestaurant();
+        menuService.saveStructure(r.getId(), List.of(
+                category("Burgers", item("Cheeseburger", 1290))));
+
+        assertThatThrownBy(() -> menuService.saveStructure(r.getId(), List.of(
+                category("Burgers", item("Cheeseburger", 1490)),
+                category("Desserts", item("Tiramisu", -1))))) // prix négatif : invalide
+                .isInstanceOf(InvalidMenuException.class);
+
+        // Rien de la tentative ratée n'a été écrit : le menu précédent est intact.
+        MenuResponse unchanged = menuService.getMenu(r.getId());
+        assertThat(unchanged.structure().categories()).hasSize(1);
+        assertThat(unchanged.structure().categories().get(0).name()).isEqualTo("Burgers");
+        assertThat(unchanged.structure().categories().get(0).items().get(0).price())
+                .isEqualTo(1290); // pas 1490 : la mise à jour partielle n'a pas eu lieu
     }
 
     @Test

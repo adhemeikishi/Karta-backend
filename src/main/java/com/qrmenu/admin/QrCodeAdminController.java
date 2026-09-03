@@ -4,7 +4,6 @@ import com.qrmenu.qrcode.QrCode;
 import com.qrmenu.qrcode.QrCodeDtos.CreateQrCodeRequest;
 import com.qrmenu.qrcode.QrCodeDtos.QrCodeResponse;
 import com.qrmenu.qrcode.QrCodeDtos.QrCodeStatsResponse;
-import com.qrmenu.qrcode.QrCodeDtos.UpdateQrCodeRequest;
 import com.qrmenu.qrcode.QrCodeService;
 import com.qrmenu.qrcode.QrImageGenerator;
 import com.qrmenu.qrscan.QrScanService;
@@ -38,6 +37,12 @@ public class QrCodeAdminController {
         this.qrScanService = qrScanService;
     }
 
+    /**
+     * Voie de secours uniquement : la création normale d'un QR est automatique, à la
+     * création du restaurant ({@code RestaurantAdminController.create}). Jamais exposée
+     * dans l'interface — utile seulement pour réparer manuellement un restaurant hérité
+     * qui n'aurait pas de QR. Refuse un second QR (409) si un existe déjà.
+     */
     @PostMapping("/api/admin/restaurants/{restaurantId}/qr-codes")
     public ResponseEntity<QrCodeResponse> create(
             @PathVariable UUID restaurantId,
@@ -57,12 +62,6 @@ public class QrCodeAdminController {
     @GetMapping("/api/admin/qr-codes/{id}")
     public QrCodeResponse findById(@PathVariable UUID id) {
         return toResponse(qrCodeService.getOrThrow(id));
-    }
-
-    @PutMapping("/api/admin/qr-codes/{id}")
-    public QrCodeResponse updateDestination(@PathVariable UUID id, @Valid @RequestBody UpdateQrCodeRequest request) {
-        QrCode qrCode = qrCodeService.updateDestination(id, request.destinationUrl());
-        return toResponse(qrCode);
     }
 
     @PostMapping("/api/admin/qr-codes/{id}/activate")

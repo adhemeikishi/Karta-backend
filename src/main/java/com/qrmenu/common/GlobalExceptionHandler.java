@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.qrmenu.kartaai.ExtractionException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.OffsetDateTime;
@@ -38,6 +39,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleMaxUpload(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(body(HttpStatus.BAD_REQUEST, "Fichier trop volumineux."));
+    }
+
+    /**
+     * Échec d'extraction KartaAI. 502 : la requête était valide, c'est le service
+     * d'analyse en aval qui n'a rien pu produire. Le message est celui destiné au
+     * restaurateur — jamais un détail technique du fournisseur.
+     */
+    @ExceptionHandler(ExtractionException.class)
+    public ResponseEntity<Map<String, Object>> handleExtraction(ExtractionException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(body(HttpStatus.BAD_GATEWAY, ex.getMessage()));
     }
 
     @ExceptionHandler(ConflictException.class)

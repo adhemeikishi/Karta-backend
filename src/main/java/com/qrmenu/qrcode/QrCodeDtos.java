@@ -22,12 +22,6 @@ public class QrCodeDtos {
     ) {
     }
 
-    public record UpdateQrCodeRequest(
-            @NotBlank(message = "destinationUrl is required")
-            String destinationUrl
-    ) {
-    }
-
     public record QrCodeResponse(
             UUID id,
             UUID restaurantId,

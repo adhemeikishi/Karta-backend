@@ -2,6 +2,7 @@ package com.qrmenu.admin;
 
 import com.qrmenu.media.MediaService;
 import com.qrmenu.qrcode.QrCodeRepository;
+import com.qrmenu.qrcode.QrCodeService;
 import com.qrmenu.qrscan.QrScanRepository;
 import com.qrmenu.qrscan.QrScanService;
 import com.qrmenu.qrscan.QrScanService.RestaurantScanStats;
@@ -26,6 +27,7 @@ public class RestaurantAdminController {
 
     private final RestaurantService restaurantService;
     private final QrCodeRepository qrCodeRepository;
+    private final QrCodeService qrCodeService;
     private final QrScanRepository qrScanRepository;
     private final QrScanService qrScanService;
     private final MediaService mediaService;
@@ -33,20 +35,27 @@ public class RestaurantAdminController {
     public RestaurantAdminController(
             RestaurantService restaurantService,
             QrCodeRepository qrCodeRepository,
+            QrCodeService qrCodeService,
             QrScanRepository qrScanRepository,
             QrScanService qrScanService,
             MediaService mediaService
     ) {
         this.restaurantService = restaurantService;
         this.qrCodeRepository = qrCodeRepository;
+        this.qrCodeService = qrCodeService;
         this.qrScanRepository = qrScanRepository;
         this.qrScanService = qrScanService;
         this.mediaService = mediaService;
     }
 
+    /**
+     * Crée le restaurant, puis son QR unique et permanent — jamais une action séparée
+     * du restaurateur (voir {@link QrCodeService#ensureQrCode}).
+     */
     @PostMapping
     public ResponseEntity<RestaurantResponse> create(@Valid @RequestBody CreateRestaurantRequest request) {
         Restaurant restaurant = restaurantService.create(request.name(), request.offer());
+        qrCodeService.ensureQrCode(restaurant);
         return ResponseEntity.status(HttpStatus.CREATED).body(RestaurantResponse.from(restaurant));
     }
 

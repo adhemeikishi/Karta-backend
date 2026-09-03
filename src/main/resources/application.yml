@@ -70,6 +70,20 @@ admin:
   username: ${ADMIN_USERNAME}
   password: ${ADMIN_PASSWORD}
 
+# KartaAI : extraction d'une carte PDF vers un menu structuré.
+# La CLÉ N'A AUCUNE VALEUR PAR DÉFAUT et ne doit jamais figurer dans le code ni dans Git.
+# Absente = KartaAI simplement désactivé (le reste du produit fonctionne) ; c'est un
+# service optionnel, il ne doit pas empêcher le démarrage.
+# Le MODÈLE est configurable (KARTA_AI_MODEL) : il évolue plus vite que le code.
+kartaai:
+  api-key: ${KARTA_AI_API_KEY:}
+  model: ${KARTA_AI_MODEL:claude-opus-5}
+  base-url: ${KARTA_AI_BASE_URL:https://api.anthropic.com}
+  # Analyser une carte prend des dizaines de secondes ; borné pour ne pas immobiliser
+  # un thread indéfiniment.
+  timeout-seconds: ${KARTA_AI_TIMEOUT_SECONDS:120}
+  max-tokens: ${KARTA_AI_MAX_TOKENS:16000}
+
 # Stockage des fichiers uploadés (PDF de menu). JAMAIS en base de données.
 # AUCUNE valeur par défaut ici volontairement : à fournir via l'environnement
 # (STORAGE_DIR). Les profils dev/test fournissent leur propre répertoire.

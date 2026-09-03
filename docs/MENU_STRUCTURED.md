@@ -154,26 +154,39 @@ Aujourd'hui, la séparation est portée par `status`, **sans table supplémentai
 - la Review corrigera ce même document, toujours en `DRAFT` ;
 - la validation le passera en `READY`, puis la publication en `PUBLISHED`.
 
-C'est suffisant tant qu'aucun menu structuré n'est publié — et il ne peut pas l'être :
-`publish` reste réservé au flux BASIC tant que le renderer HTML n'existe pas. **Le QR ne
-doit jamais pointer vers une page qui n'existe pas.**
+> **Mise à jour — la copie de travail existe (migration V6).**
+> Ce paragraphe prévoyait de s'en passer « tant qu'aucun menu structuré n'est publié — et
+> il ne peut pas l'être ». Cette condition est tombée avec l'arrivée du renderer HTML :
+> un menu structuré se publie désormais. Sans copie de travail, relancer KartaAI sur une
+> carte en ligne l'écraserait sous les yeux des clients. La table a donc été créée.
 
-Le jour où l'on voudra re-passer KartaAI sur un menu **déjà publié**, il faudra une copie
-de travail, faute de quoi l'import écraserait le menu vu par les clients. Ajout prévu à ce
-moment-là, et pas avant :
+`menu_drafts` (V6), volontairement **hors de l'agrégat `Menu`** :
 
 ```sql
 CREATE TABLE menu_drafts (
-    id          UUID PRIMARY KEY,
-    menu_id     UUID NOT NULL REFERENCES menus (id) ON DELETE CASCADE,
-    source      VARCHAR(20) NOT NULL,   -- KARTA_AI | MANUAL
-    payload     TEXT NOT NULL,          -- le JSON `structure` tel quel
-    created_at  TIMESTAMP WITH TIME ZONE NOT NULL
+    id              UUID PRIMARY KEY,
+    restaurant_id   UUID NOT NULL UNIQUE REFERENCES restaurants (id) ON DELETE CASCADE,
+    source_asset_id UUID REFERENCES media_assets (id) ON DELETE SET NULL,
+    source_filename VARCHAR(255),
+    payload         TEXT NOT NULL,   -- le document d'extraction tel quel
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL
 );
 ```
 
+Rattachée au **client** et non au menu : le brouillon doit pouvoir exister avant qu'une
+ligne `menus` n'existe. Un seul brouillon par client — une nouvelle extraction remplace la
+précédente au lieu de s'empiler.
+
+Le cycle est donc :
+
+- l'extraction écrit **uniquement** dans `menu_drafts` — la carte publiée ne bouge pas ;
+- la Review corrige ce document en mémoire, côté navigateur ;
+- la validation écrit le menu par le `PUT` existant, puis le brouillon est consommé
+  **dans la même transaction** : si l'écriture échoue, le rollback rend son brouillon au
+  restaurateur au lieu de lui faire tout ressaisir.
+
 Le draft n'est qu'un **document en attente** ; la structure relationnelle reste la seule
-source de vérité une fois validée. Aucune migration des tables existantes n'est nécessaire.
+source de vérité une fois validée. Aucune table existante n'a été modifiée.
 
 ---
 
@@ -226,12 +239,11 @@ et les suppléments multiples — inutile d'inventer trois entités.
 
 | Brique                      | Ce qui est déjà prêt                                                                  |
 | --------------------------- | ------------------------------------------------------------------------------------- |
-| **Renderer HTML**           | `structure` est déjà le document final ; `version` sert de cache-busting               |
-| **Presets / thème**         | colonnes `preset` + `theme_json` à ajouter sur `menus` (additif, aucune table touchée)  |
-| **KartaAI**                 | écrit via le `PUT` existant ; aucun endpoint spécifique à prévoir                       |
+| **Renderer HTML**           | ✅ livré : `menu/menu.html`, un template pour les cinq presets                          |
+| **Presets / thème**         | ✅ livré (V5) : colonnes `preset` + identité PREMIUM sur `menus`, pas de `theme_json`   |
+| **KartaAI**                 | ✅ livré (V6) : `POST/GET/DELETE .../menu/ai/*` pour le brouillon, écriture par le `PUT` |
 | **Review plat par plat**    | les `id` de catégories et de produits sont stables entre deux enregistrements           |
-| **Photos**                  | `image_asset_id` existe ; il ne manque que l'endpoint d'upload d'image                  |
+| **Photos**                  | ✅ livré : `POST .../images` + `image_asset_id`                                          |
 | **Commandes (V2)**          | les lignes de commande référenceront `menu_items.id` — stable, jamais recréé            |
 
-Ce qui reste volontairement absent : presets, thème, renderer, upload d'images,
-options, panier, commandes, paiement.
+Ce qui reste volontairement absent : options / suppléments, panier, commandes, paiement.
