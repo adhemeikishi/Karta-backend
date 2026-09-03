@@ -3,6 +3,7 @@ package com.qrmenu.menu;
 import com.qrmenu.common.InvalidMenuException;
 import com.qrmenu.common.NotFoundException;
 import com.qrmenu.media.MediaAsset;
+import com.qrmenu.media.MediaKind;
 import com.qrmenu.media.MediaService;
 import com.qrmenu.common.PublicUrlBuilder;
 import com.qrmenu.menu.MenuDtos.CategoryResponse;
@@ -305,6 +306,11 @@ public class MenuStructureService {
         }
         if (!asset.getRestaurantId().equals(restaurantId)) {
             throw new InvalidMenuException("Image non rattachée à ce client: " + imageAssetId);
+        }
+        // Un asset PDF référencé comme photo de plat produirait une image cassée sur la
+        // page publique : le renderer ne peut pas le rattraper, on refuse ici.
+        if (asset.getKind() != MediaKind.IMAGE) {
+            throw new InvalidMenuException("L'asset référencé n'est pas une image: " + imageAssetId);
         }
         return imageAssetId;
     }

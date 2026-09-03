@@ -94,14 +94,22 @@ class MenuAdminControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * Un client PRO peut importer une carte PDF : elle sert de source à la future
+     * transformation KartaAI. Le menu reste STRUCTURED et non publié — le PDF ne
+     * devient pas le menu diffusé.
+     */
     @Test
-    void rejectsPdfFlowForNonBasicRestaurant() throws Exception {
+    void acceptsSourcePdfForNonBasicRestaurant() throws Exception {
         String id = createRestaurant("PRO");
 
         mockMvc.perform(multipart("/api/admin/restaurants/" + id + "/menu/pdf")
                         .file(pdfPart())
                         .with(httpBasic("admin", "test-password")))
-                .andExpect(status().isConflict());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pdf.originalFilename").value("carte.pdf"))
+                .andExpect(jsonPath("$.type").value("STRUCTURED"))
+                .andExpect(jsonPath("$.published").value(false));
     }
 
     @Test

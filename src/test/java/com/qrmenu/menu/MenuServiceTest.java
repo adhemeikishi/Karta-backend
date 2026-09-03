@@ -94,12 +94,21 @@ class MenuServiceTest {
                 .isInstanceOf(InvalidUploadException.class);
     }
 
+    /**
+     * Le flux PDF est ouvert aux offres PRO / PREMIUM : le PDF y est le document
+     * <strong>source</strong> d'une future transformation KartaAI, pas le menu diffusé.
+     * Refuser l'envoi obligerait le restaurateur à ressaisir sa carte à la main.
+     * Voir {@link MenuOfferUpgradeTest} pour le parcours complet BASIC → PRO.
+     */
     @Test
-    void rejectsPdfFlowForNonBasicOffer() {
+    void acceptsSourcePdfForNonBasicOffer() {
         Restaurant pro = restaurantService.create("Pro " + System.nanoTime(), RestaurantOffer.PRO);
 
-        assertThatThrownBy(() -> menuService.uploadPdf(pro.getId(), VALID_PDF, "application/pdf", "x.pdf"))
-                .isInstanceOf(ConflictException.class);
+        MenuResponse menu = menuService.uploadPdf(pro.getId(), VALID_PDF, "application/pdf", "x.pdf");
+
+        assertThat(menu.pdf()).isNotNull();
+        assertThat(menu.type()).isEqualTo(MenuType.STRUCTURED);
+        assertThat(menu.published()).isFalse();
     }
 
     @Test

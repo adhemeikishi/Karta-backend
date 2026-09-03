@@ -34,8 +34,10 @@ import java.util.UUID;
  * Maintient {@code qr_codes.destination_url} comme cache de la destination effective :
  * le hot-path {@code /q/{code}} reste un simple lookup, sans jointure supplémentaire.
  *
- * La publication d'un menu STRUCTURED n'est volontairement pas ouverte tant que le
- * renderer HTML n'existe pas : le QR ne doit jamais pointer vers une page inexistante.
+ * Le PDF et le type de menu sont deux choses distinctes : {@code pdf_asset_id} porte la
+ * carte PDF du client, que celle-ci soit le menu diffusé (BASIC) ou le document
+ * <strong>source</strong> d'une future transformation KartaAI (PRO / PREMIUM). Un
+ * changement d'offre ne touche donc jamais au PDF.
  */
 @Service
 public class MenuService {
@@ -133,13 +135,26 @@ public class MenuService {
         return toResponse(restaurant, menuRepository.save(menu));
     }
 
-    // ---------------------------------------------------------------- menu PDF (offre BASIC)
+    // ---------------------------------------------------------------- carte PDF (toutes offres)
 
+    /**
+     * Enregistre la carte PDF du client.
+     *
+     * Ouvert à <strong>toutes</strong> les offres, car le PDF n'a pas le même rôle selon
+     * l'offre :
+     * <ul>
+     *   <li>BASIC : le PDF est le menu diffusé ;</li>
+     *   <li>PRO / PREMIUM : le PDF est le document <em>source</em> que KartaAI
+     *       transformera en menu structuré. Un restaurateur qui passe à PRO ne doit
+     *       jamais avoir à ressaisir sa carte à la main.</li>
+     * </ul>
+     * Le type du menu créé découle donc de l'offre, jamais du fait qu'on envoie un PDF.
+     */
     @Transactional
     public MenuResponse uploadPdf(UUID restaurantId, byte[] content, String contentType, String originalFilename) {
-        Restaurant restaurant = requireBasic(restaurantId);
+        Restaurant restaurant = restaurantService.getOrThrow(restaurantId);
         Menu menu = menuRepository.findByRestaurantId(restaurantId)
-                .orElseGet(() -> new Menu(restaurantId, MenuType.PDF));
+                .orElseGet(() -> new Menu(restaurantId, typeFor(restaurant.getOffer())));
 
         UUID previousAssetId = menu.getPdfAssetId();
         MediaAsset asset = mediaService.storePdf(restaurantId, content, contentType, originalFilename);
@@ -153,9 +168,10 @@ public class MenuService {
         return toResponse(restaurant, saved);
     }
 
+    /** Retire la carte PDF (menu diffusé pour BASIC, document source pour PRO / PREMIUM). */
     @Transactional
     public MenuResponse deletePdf(UUID restaurantId) {
-        Restaurant restaurant = requireBasic(restaurantId);
+        Restaurant restaurant = restaurantService.getOrThrow(restaurantId);
         Menu menu = menuRepository.findByRestaurantId(restaurantId)
                 .orElseThrow(() -> new ConflictException("Aucun menu à modifier."));
 
@@ -183,7 +199,7 @@ public class MenuService {
         Restaurant restaurant = restaurantService.getOrThrow(restaurantId);
         Menu menu = menuRepository.findByRestaurantId(restaurantId)
                 .orElseThrow(() -> new ConflictException("Aucun menu à publier."));
-        requireTypeMatchesOffer(restaurant, menu);
+        requirePublishableForOffer(restaurant, menu);
         requirePublishableContent(menu);
 
         menu.publish();
@@ -198,7 +214,7 @@ public class MenuService {
         Restaurant restaurant = restaurantService.getOrThrow(restaurantId);
         Menu menu = menuRepository.findByRestaurantId(restaurantId)
                 .orElseThrow(() -> new ConflictException("Aucun menu à dépublier."));
-        requireTypeMatchesOffer(restaurant, menu);
+        requirePublishableForOffer(restaurant, menu);
 
         menu.unpublish();
         if (menu.getType() == MenuType.STRUCTURED) {
@@ -209,9 +225,20 @@ public class MenuService {
         return toResponse(restaurant, saved);
     }
 
-    private void requireTypeMatchesOffer(Restaurant restaurant, Menu menu) {
-        if (menu.getType() != typeFor(restaurant.getOffer())) {
-            throw new ConflictException("Le menu ne correspond pas à l'offre actuelle du client.");
+    /**
+     * Contrôle de diffusion, fondé sur le type <strong>réel</strong> du menu et non sur
+     * celui que l'offre impliquerait.
+     *
+     * Un menu structuré exige PRO / PREMIUM : un client BASIC n'a pas de page HTML.
+     *
+     * Un menu PDF reste diffusable quelle que soit l'offre. C'est le cas d'un client
+     * BASIC passé à PRO dont le QR imprimé sert déjà son PDF : exiger la correspondance
+     * type/offre rendrait ce QR impossible à dépublier ou republier tant que le menu
+     * structuré n'existe pas — un QR déjà imprimé ne doit jamais devenir ingérable.
+     */
+    private void requirePublishableForOffer(Restaurant restaurant, Menu menu) {
+        if (menu.getType() == MenuType.STRUCTURED && restaurant.getOffer() == RestaurantOffer.BASIC) {
+            throw new ConflictException("Le menu structuré est réservé aux offres PRO et PREMIUM.");
         }
     }
 
@@ -234,13 +261,6 @@ public class MenuService {
         return offer == RestaurantOffer.BASIC ? MenuType.PDF : MenuType.STRUCTURED;
     }
 
-    private Restaurant requireBasic(UUID restaurantId) {
-        Restaurant restaurant = restaurantService.getOrThrow(restaurantId);
-        if (restaurant.getOffer() != RestaurantOffer.BASIC) {
-            throw new ConflictException("Le menu PDF est réservé à l'offre BASIC.");
-        }
-        return restaurant;
-    }
 
     private Restaurant requireStructured(UUID restaurantId) {
         Restaurant restaurant = restaurantService.getOrThrow(restaurantId);

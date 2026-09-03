@@ -211,7 +211,8 @@ class PublicMenuRenderingTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.restaurantName").value(fixture.restaurant().getName()))
                 .andExpect(jsonPath("$.currency").value("EUR"))
-                .andExpect(jsonPath("$.preset").value("classic"))
+                .andExpect(jsonPath("$.theme.preset").value("modern"))
+                .andExpect(jsonPath("$.theme.accent").value("#F05A00"))
                 .andExpect(jsonPath("$.categories.length()").value(2)) // la masquée est exclue
                 .andExpect(jsonPath("$.categories[0].name").value("Burgers"))
                 .andExpect(jsonPath("$.categories[0].items[0].price").value(1290))

@@ -203,6 +203,44 @@ class RestaurantAdminControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    // ------------------------------------------------------------- statistiques
+
+    @Test
+    void statsEndpointRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/admin/restaurants/" + java.util.UUID.randomUUID() + "/stats"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void statsForUnknownClientReturns404() throws Exception {
+        mockMvc.perform(get("/api/admin/restaurants/" + java.util.UUID.randomUUID() + "/stats")
+                        .with(httpBasic("admin", "test-password")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void statsExposeFourCountersAndAThirtyDaySeries() throws Exception {
+        String body = mockMvc.perform(post("/api/admin/restaurants")
+                        .with(httpBasic("admin", "test-password"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Resto Stats " + System.nanoTime() + "\",\"offer\":\"BASIC\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = com.jayway.jsonpath.JsonPath.read(body, "$.id");
+
+        mockMvc.perform(get("/api/admin/restaurants/" + id + "/stats")
+                        .with(httpBasic("admin", "test-password")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.today").value(0))
+                .andExpect(jsonPath("$.last7Days").value(0))
+                .andExpect(jsonPath("$.last30Days").value(0))
+                .andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.daily.length()").value(30))
+                // La date est une date locale sérialisée en ISO, pas un instant.
+                .andExpect(jsonPath("$.daily[0].date").exists())
+                .andExpect(jsonPath("$.daily[0].scans").value(0));
+    }
+
     @Test
     void listReturnsCountsForEachRestaurant() throws Exception {
         mockMvc.perform(post("/api/admin/restaurants")

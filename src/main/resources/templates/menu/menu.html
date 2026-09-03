@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<!--/*
+  Rendu unique du menu Karta — les cinq presets passent par ce fichier.
+
+  L'apparence arrive entièrement résolue dans `theme` (MenuTheme) : couleurs, densité et
+  typographie sont posées comme variables CSS sur <html>. Le template ne calcule aucune
+  couleur et ne connaît aucun preset par son nom, à une exception près : la densité, qui
+  change le rythme vertical et quelques structures (une carte de street food ne se lit
+  pas comme une carte de restaurant gastronomique).
+
+  Conséquence voulue : ajouter un style côté serveur ne demande pas de dupliquer ce
+  balisage, donc aucun preset ne peut prendre du retard sur les autres.
+*/-->
+<html
+  lang="fr"
+  xmlns:th="http://www.thymeleaf.org"
+  th:style="|--t-bg:${theme.background};--t-surface:${theme.surface};--t-border:${theme.border};--t-text:${theme.text};--t-muted:${theme.muted};--t-accent:${theme.accent};--t-accent-text:${theme.accentText};--t-font:${theme.fontStack};|"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" th:attr="content=${theme.background}" content="#ffffff" />
+    <!-- Évite une requête /favicon.ico inutile (404) sur un réseau mobile. -->
+    <link rel="icon" href="data:," />
+    <title th:text="${menu.restaurantName} + ' — Menu'">Menu</title>
+    <th:block th:replace="~{menu/base :: reset}"></th:block>
+    <style>
+      /* ------------------------------------------------------------------ base */
+      body {
+        background-color: var(--t-bg);
+        color: var(--t-text);
+        font-family: var(--t-font);
+
+        /* Rythme par défaut (densité « editorial »). Chaque densité ne redéfinit que
+           ce qui la distingue : une seule feuille de style, cinq respirations. */
+        --t-pad-x: 1.25rem;
+        --t-header-top: 2.5rem;
+        --t-header-bottom: 2rem;
+        --t-cat-gap: 2.5rem;
+        --t-item-pad: 1.125rem;
+        --t-title-size: 1.75rem;
+        --t-cat-size: 0.75rem;
+        --t-cat-spacing: 0.12em;
+        --t-align: left;
+      }
+
+      .sheet {
+        max-width: 34rem;
+        margin: 0 auto;
+        min-height: 100vh;
+        background-color: var(--t-bg);
+      }
+
+      /* --------------------------------------------------- bandeau d'aperçu */
+      /* Jamais rendu publiquement : seul le studio passe `preview` à vrai. */
+      .preview-bar {
+        background-color: var(--t-accent);
+        color: var(--t-accent-text);
+        padding: 0.5rem 1.25rem;
+        font-size: 0.6875rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      /* ------------------------------------------------------------- en-tête */
+      .hero {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        background-color: var(--t-surface);
+      }
+      .hero img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .header {
+        padding: var(--t-header-top) var(--t-pad-x) var(--t-header-bottom);
+        border-bottom: 1px solid var(--t-border);
+        text-align: var(--t-align);
+      }
+
+      .logo {
+        max-height: 3.5rem;
+        width: auto;
+        margin-bottom: 1.25rem;
+      }
+
+      .header-rule {
+        width: 1.75rem;
+        height: 3px;
+        background-color: var(--t-accent);
+        margin-bottom: 1rem;
+      }
+
+      .eyebrow {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--t-accent);
+      }
+
+      .restaurant-name {
+        font-size: var(--t-title-size);
+        line-height: 1.12;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+        margin-top: 0.375rem;
+      }
+
+      /* ---------------------------------------------------------- catégories */
+      .categories {
+        padding: 0 var(--t-pad-x) 3rem;
+      }
+
+      .category {
+        padding-top: var(--t-cat-gap);
+      }
+
+      .category-name {
+        font-size: var(--t-cat-size);
+        font-weight: 700;
+        letter-spacing: var(--t-cat-spacing);
+        text-transform: uppercase;
+        padding-bottom: 0.625rem;
+        border-bottom: 1px solid var(--t-text);
+      }
+
+      .category-description {
+        margin-top: 0.75rem;
+        font-size: 0.875rem;
+        color: var(--t-muted);
+      }
+
+      /* --------------------------------------------------------------- plats */
+      .item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.875rem;
+        padding: var(--t-item-pad) 0;
+        border-bottom: 1px solid var(--t-border);
+      }
+      .item:last-child {
+        border-bottom: none;
+      }
+
+      .item-thumb {
+        width: 3.5rem;
+        height: 3.5rem;
+        flex-shrink: 0;
+        border-radius: 6px;
+        object-fit: cover;
+        background-color: var(--t-surface);
+      }
+
+      .item-body {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .item-name {
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.35;
+      }
+
+      .item-description {
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+        line-height: 1.45;
+        color: var(--t-muted);
+      }
+
+      .item-price {
+        flex-shrink: 0;
+        font-size: 1rem;
+        font-weight: 650;
+        white-space: nowrap;
+        padding-top: 0.0625rem;
+        color: var(--t-accent);
+      }
+
+      .item-flag {
+        display: inline-block;
+        margin-top: 0.5rem;
+        padding: 0.125rem 0.4375rem;
+        border-radius: 3px;
+        background-color: var(--t-surface);
+        border: 1px solid var(--t-border);
+        color: var(--t-muted);
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      /* Indisponible : atténué mais toujours lisible — le plat reste à la carte. */
+      .item.is-unavailable .item-name,
+      .item.is-unavailable .item-description {
+        color: var(--t-muted);
+      }
+      .item.is-unavailable .item-price {
+        color: var(--t-muted);
+        text-decoration: line-through;
+      }
+      .item.is-unavailable .item-thumb {
+        opacity: 0.45;
+      }
+
+      /* ------------------------------------------------------- états et pied */
+      .empty {
+        padding: 4rem var(--t-pad-x);
+        text-align: center;
+        color: var(--t-muted);
+        font-size: 0.9375rem;
+      }
+
+      .footer {
+        padding: 1.75rem var(--t-pad-x) 2.5rem;
+        border-top: 1px solid var(--t-border);
+        text-align: center;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: var(--t-muted);
+      }
+      .footer b {
+        color: var(--t-text);
+        font-weight: 700;
+      }
+
+      /* ==================================================================== */
+      /* Densités                                                             */
+      /* ==================================================================== */
+
+      /* Street food : serré, contrasté, on parcourt la carte debout. */
+      .density-compact {
+        --t-header-top: 1.75rem;
+        --t-header-bottom: 1.5rem;
+        --t-cat-gap: 1.75rem;
+        --t-item-pad: 0.75rem;
+        --t-title-size: 1.625rem;
+        --t-cat-spacing: 0.16em;
+      }
+      .density-compact .category-name {
+        display: inline-block;
+        background-color: var(--t-accent);
+        color: var(--t-accent-text);
+        border-bottom: none;
+        padding: 0.3125rem 0.625rem;
+        border-radius: 4px;
+      }
+      .density-compact .item-name {
+        font-weight: 700;
+      }
+      .density-compact .item-thumb {
+        width: 3rem;
+        height: 3rem;
+      }
+
+      /* Minimal : beaucoup d'air, la typographie porte tout, filets quasi absents. */
+      .density-airy {
+        --t-header-top: 4.5rem;
+        --t-header-bottom: 3rem;
+        --t-cat-gap: 4rem;
+        --t-item-pad: 1.5rem;
+        --t-title-size: 2rem;
+        --t-cat-spacing: 0.2em;
+      }
+      .density-airy .header,
+      .density-airy .category-name {
+        border-bottom-color: var(--t-border);
+      }
+      .density-airy .header-rule,
+      .density-airy .eyebrow {
+        display: none;
+      }
+      .density-airy .item-name {
+        font-weight: 500;
+      }
+      .density-airy .item-price {
+        color: var(--t-text);
+        font-weight: 500;
+      }
+
+      /* Luxe : centré, empattements, filets fins — registre haut de gamme. */
+      .density-elegant {
+        --t-header-top: 3.5rem;
+        --t-header-bottom: 2.5rem;
+        --t-cat-gap: 3.25rem;
+        --t-item-pad: 1.25rem;
+        --t-title-size: 2rem;
+        --t-cat-spacing: 0.24em;
+        --t-align: center;
+      }
+      .density-elegant .header-rule {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .density-elegant .restaurant-name {
+        font-weight: 500;
+        letter-spacing: 0.01em;
+      }
+      .density-elegant .logo {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .density-elegant .category-name {
+        text-align: center;
+        border-bottom: 1px solid var(--t-accent);
+        color: var(--t-accent);
+        font-weight: 600;
+      }
+      .density-elegant .category-description {
+        text-align: center;
+      }
+      .density-elegant .item-name {
+        font-weight: 500;
+      }
+
+      /* --------------------------------------------------- tablette / desktop */
+      @media (min-width: 768px) {
+        body {
+          --t-pad-x: 3rem;
+        }
+        .sheet {
+          max-width: 40rem;
+          border-left: 1px solid var(--t-border);
+          border-right: 1px solid var(--t-border);
+        }
+        .density-airy {
+          --t-title-size: 2.5rem;
+        }
+        .density-elegant {
+          --t-title-size: 2.5rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body th:class="'density-' + ${theme.density}">
+    <div class="sheet">
+      <div class="preview-bar" th:if="${preview}">
+        <span th:if="${previewPublished}">Aperçu — cette carte est en ligne</span>
+        <span th:unless="${previewPublished}">Aperçu — ce menu n'est pas publié</span>
+      </div>
+
+      <!-- Image d'en-tête PREMIUM. Absente, aucun bloc n'est rendu : pas d'espace vide. -->
+      <div class="hero" th:if="${theme.heroUrl != null}">
+        <img th:src="${theme.heroUrl}" alt="" decoding="async" />
+      </div>
+
+      <header class="header">
+        <img class="logo" th:if="${theme.logoUrl != null}" th:src="${theme.logoUrl}" alt="" decoding="async" />
+        <div class="header-rule"></div>
+        <p class="eyebrow">Menu</p>
+        <h1 class="restaurant-name k-wrap" th:text="${menu.restaurantName}">Le Bistrot</h1>
+      </header>
+
+      <main>
+        <p class="empty" th:if="${menu.empty}">Le menu sera disponible très prochainement.</p>
+
+        <div class="categories" th:unless="${menu.empty}">
+          <section class="category" th:each="category : ${menu.categories}">
+            <h2 class="category-name k-wrap" th:text="${category.name}">Burgers</h2>
+            <p
+              class="category-description k-wrap"
+              th:if="${category.description != null}"
+              th:text="${category.description}"
+            >
+              Description
+            </p>
+
+            <ul>
+              <li
+                class="item"
+                th:each="item : ${category.items}"
+                th:classappend="${!item.available} ? 'is-unavailable'"
+              >
+                <img
+                  class="item-thumb"
+                  th:if="${item.imageUrl != null}"
+                  th:src="${item.imageUrl}"
+                  th:alt="${item.name}"
+                  loading="lazy"
+                  decoding="async"
+                />
+
+                <div class="item-body">
+                  <p class="item-name k-wrap" th:text="${item.name}">Cheeseburger</p>
+                  <p
+                    class="item-description k-wrap"
+                    th:if="${item.description != null}"
+                    th:text="${item.description}"
+                  >
+                    Steak, cheddar, salade
+                  </p>
+                  <span class="item-flag" th:unless="${item.available}">Indisponible</span>
+                </div>
+
+                <p class="item-price k-tnum" th:text="${item.priceLabel}">12,90 €</p>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </main>
+
+      <footer class="footer"><b>Karta</b></footer>
+    </div>
+  </body>
+</html>

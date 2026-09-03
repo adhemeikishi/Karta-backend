@@ -23,6 +23,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Artefacts de validation navigateur (Playwright MCP) : snapshots, captures, traces.
+# Jetables et régénérés à chaque session — ils n'ont rien à faire dans l'historique.
+/.playwright-mcp/
+/*.png
+
 # Fichiers parasites à la racine (le vrai config VS Code vit dans admin-frontend/.vscode/)
 /extensions.json
 /launch.json

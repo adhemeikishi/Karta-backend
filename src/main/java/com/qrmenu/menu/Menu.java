@@ -53,6 +53,33 @@ public class Menu {
     @Column(name = "fallback_url", columnDefinition = "TEXT")
     private String fallbackUrl;
 
+    /**
+     * Apparence du menu. Cinq colonnes plates plutôt qu'un document JSON : le preset est
+     * contraint en base (CHECK), les couleurs sont validées à l'écriture, et une requête
+     * peut compter les menus par style sans parser quoi que ce soit.
+     *
+     * Aucun de ces champs n'appartient au contenu : les modifier ne touche ni aux
+     * catégories, ni aux prix, ni au statut de publication.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private MenuPreset preset;
+
+    @Column(name = "brand_name", length = 120)
+    private String brandName;
+
+    @Column(name = "primary_color", length = 7)
+    private String primaryColor;
+
+    @Column(name = "secondary_color", length = 7)
+    private String secondaryColor;
+
+    @Column(name = "logo_asset_id")
+    private UUID logoAssetId;
+
+    @Column(name = "hero_asset_id")
+    private UUID heroAssetId;
+
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
 
@@ -72,23 +99,39 @@ public class Menu {
         this.type = type;
         this.status = MenuStatus.DRAFT;
         this.version = 1;
+        this.preset = MenuPreset.DEFAULT;
         OffsetDateTime now = OffsetDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
     }
 
+    /**
+     * Rattache le PDF au menu.
+     *
+     * Menu {@code PDF} (offre BASIC) : le PDF <em>est</em> le menu diffusé. Le remplacer
+     * dépublie — une re-publication explicite est exigée.
+     *
+     * Menu {@code STRUCTURED} (offres PRO / PREMIUM) : le PDF n'est qu'un document
+     * <strong>source</strong>, en attente de transformation. Il ne remplace pas le menu
+     * structuré et ne doit donc jamais toucher au statut de diffusion : importer une
+     * carte PDF ne peut pas dépublier le menu que les clients sont en train de lire.
+     */
     public void attachPdf(UUID assetId) {
         this.pdfAssetId = assetId;
-        // Un remplacement de PDF dépublie : re-publication explicite requise.
-        this.status = MenuStatus.READY;
-        this.publishedAt = null;
+        if (this.type == MenuType.PDF) {
+            this.status = MenuStatus.READY;
+            this.publishedAt = null;
+        }
         touch();
     }
 
+    /** Symétrique d'{@link #attachPdf} : ne dépublie que si le PDF était le menu diffusé. */
     public void detachPdf() {
         this.pdfAssetId = null;
-        this.status = MenuStatus.DRAFT;
-        this.publishedAt = null;
+        if (this.type == MenuType.PDF) {
+            this.status = MenuStatus.DRAFT;
+            this.publishedAt = null;
+        }
         touch();
     }
 
@@ -112,6 +155,22 @@ public class Menu {
         if (this.status != MenuStatus.PUBLISHED) {
             this.status = hasContent ? MenuStatus.READY : MenuStatus.DRAFT;
         }
+        touch();
+    }
+
+    /**
+     * Applique une nouvelle apparence.
+     *
+     * Ne touche jamais au statut : un menu publié reste publié pendant que le
+     * restaurateur essaie des styles. Seul « Publier » met en ligne.
+     */
+    public void applyDesign(MenuDesign design) {
+        this.preset = design.preset() == null ? MenuPreset.DEFAULT : design.preset();
+        this.brandName = design.brandName();
+        this.primaryColor = design.primaryColor();
+        this.secondaryColor = design.secondaryColor();
+        this.logoAssetId = design.logoAssetId();
+        this.heroAssetId = design.heroAssetId();
         touch();
     }
 
@@ -161,6 +220,17 @@ public class Menu {
     /** Dérivé de {@link #getStatus()} : le statut est la seule source de vérité. */
     public boolean isPublished() {
         return status == MenuStatus.PUBLISHED;
+    }
+
+    /** Apparence enregistrée, telle qu'elle sera publiée. */
+    public MenuDesign getDesign() {
+        return new MenuDesign(
+                preset == null ? MenuPreset.DEFAULT : preset,
+                brandName,
+                primaryColor,
+                secondaryColor,
+                logoAssetId,
+                heroAssetId);
     }
 
     public OffsetDateTime getPublishedAt() {

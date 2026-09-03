@@ -5,12 +5,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class QrScanService {
+
+    /** Largeur de la fenêtre du graphique de scans, en jours (aujourd'hui inclus). */
+    public static final int DAILY_WINDOW_DAYS = 30;
 
     private final QrScanRepository qrScanRepository;
 
@@ -58,7 +67,66 @@ public class QrScanService {
         return new QrScanStats(today, thisWeek, thisMonth, total);
     }
 
+    /**
+     * Statistiques de scans d'un <strong>client</strong>, sur une fenêtre glissante de
+     * 30 jours se terminant aujourd'hui.
+     *
+     * Les trois compteurs de période et la série quotidienne sont calculés à partir du
+     * même jeu d'horodatages : le graphique ne peut donc jamais contredire les chiffres
+     * affichés au-dessus de lui. Seul {@code total} (tout l'historique) vient d'un
+     * compteur distinct.
+     *
+     * Les jours sans scan figurent dans la série avec {@code 0} — un axe temporel troué
+     * se lit mal et laisse croire à des données manquantes.
+     */
+    @Transactional(readOnly = true)
+    public RestaurantScanStats restaurantStats(UUID restaurantId) {
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate today = LocalDate.now(zone);
+        LocalDate windowStart = today.minusDays(DAILY_WINDOW_DAYS - 1L);
+        OffsetDateTime since = windowStart.atStartOfDay(zone).toOffsetDateTime();
+
+        Map<LocalDate, Long> byDay = qrScanRepository
+                .findScanTimesByRestaurantIdSince(restaurantId, since).stream()
+                .collect(Collectors.groupingBy(
+                        instant -> instant.atZoneSameInstant(zone).toLocalDate(),
+                        Collectors.counting()));
+
+        List<DailyScans> daily = new ArrayList<>(DAILY_WINDOW_DAYS);
+        for (int i = 0; i < DAILY_WINDOW_DAYS; i++) {
+            LocalDate day = windowStart.plusDays(i);
+            daily.add(new DailyScans(day, byDay.getOrDefault(day, 0L)));
+        }
+
+        return new RestaurantScanStats(
+                byDay.getOrDefault(today, 0L),
+                sumOfLastDays(daily, 7),
+                sumOfLastDays(daily, DAILY_WINDOW_DAYS),
+                qrScanRepository.countByRestaurantId(restaurantId),
+                daily);
+    }
+
+    /** Somme des {@code days} derniers jours de la série (aujourd'hui inclus). */
+    private static long sumOfLastDays(List<DailyScans> daily, int days) {
+        return daily.subList(Math.max(0, daily.size() - days), daily.size()).stream()
+                .mapToLong(DailyScans::scans)
+                .sum();
+    }
+
     public record QrScanStats(long today, long thisWeek, long thisMonth, long total) {
+    }
+
+    /** Un jour de la série. {@code date} est une date locale, pas un instant. */
+    public record DailyScans(LocalDate date, long scans) {
+    }
+
+    public record RestaurantScanStats(
+            long today,
+            long last7Days,
+            long last30Days,
+            long total,
+            List<DailyScans> daily
+    ) {
     }
 
     private record TimeWindows(OffsetDateTime startOfToday, OffsetDateTime startOfWeek, OffsetDateTime startOfMonth) {

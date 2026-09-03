@@ -5,6 +5,7 @@ import com.qrmenu.menu.Menu;
 import com.qrmenu.menu.MenuCategory;
 import com.qrmenu.menu.MenuCategoryRepository;
 import com.qrmenu.menu.MenuItem;
+import com.qrmenu.menu.MenuDesign;
 import com.qrmenu.menu.MenuItemRepository;
 import com.qrmenu.menu.MenuRepository;
 import com.qrmenu.menu.MenuType;
@@ -14,6 +15,7 @@ import com.qrmenu.render.PublicMenuDtos.PublicCategory;
 import com.qrmenu.render.PublicMenuDtos.PublicItem;
 import com.qrmenu.render.PublicMenuDtos.PublicMenu;
 import com.qrmenu.restaurant.Restaurant;
+import com.qrmenu.restaurant.RestaurantOffer;
 import com.qrmenu.restaurant.RestaurantService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +37,7 @@ import java.util.stream.Collectors;
  * Deux entrées, une seule logique de construction :
  * <ul>
  *   <li>{@link #findPublic(String)} — accès public, n'accepte qu'un menu PUBLISHED ;</li>
- *   <li>{@link #buildPreview(UUID)} — aperçu back-office, accepte n'importe quel statut.</li>
+ *   <li>{@link #buildPreview(UUID, com.qrmenu.menu.MenuDesign)} — aperçu du studio, tout statut.</li>
  * </ul>
  *
  * C'est ici — et pas dans le template — que le contenu non diffusable est écarté :
@@ -50,6 +52,7 @@ public class PublicMenuService {
     private final MenuItemRepository itemRepository;
     private final RestaurantService restaurantService;
     private final PublicUrlBuilder urlBuilder;
+    private final MenuThemeResolver themeResolver;
 
     public PublicMenuService(
             QrCodeRepository qrCodeRepository,
@@ -57,7 +60,8 @@ public class PublicMenuService {
             MenuCategoryRepository categoryRepository,
             MenuItemRepository itemRepository,
             RestaurantService restaurantService,
-            PublicUrlBuilder urlBuilder
+            PublicUrlBuilder urlBuilder,
+            MenuThemeResolver themeResolver
     ) {
         this.qrCodeRepository = qrCodeRepository;
         this.menuRepository = menuRepository;
@@ -65,6 +69,7 @@ public class PublicMenuService {
         this.itemRepository = itemRepository;
         this.restaurantService = restaurantService;
         this.urlBuilder = urlBuilder;
+        this.themeResolver = themeResolver;
     }
 
     /**
@@ -86,21 +91,52 @@ public class PublicMenuService {
         return menuRepository.findByRestaurantId(restaurantId)
                 .filter(menu -> menu.getType() == MenuType.STRUCTURED)
                 .filter(Menu::isPublished)
-                .map(menu -> build(restaurantService.getOrThrow(restaurantId), menu));
+                .map(menu -> build(restaurantService.getOrThrow(restaurantId), menu, null));
     }
 
-    /** Aperçu back-office : rend le menu quel que soit son statut, sans le publier. */
+    /**
+     * Aperçu du studio : rend le menu quel que soit son statut, sans rien publier ni
+     * enregistrer.
+     *
+     * {@code overrides} porte les choix d'apparence <strong>non enregistrés</strong> —
+     * c'est ce qui permet à l'aperçu de suivre un clic sur un preset avant même que le
+     * restaurateur n'ait cliqué sur « Enregistrer ». Rien n'est écrit en base.
+     *
+     * Un client PRO / PREMIUM qui n'a pas encore de ligne {@code menus} obtient un aperçu
+     * vide plutôt qu'un 404 : le studio doit être utilisable dès la première visite,
+     * sinon choisir un style imposerait d'abord de saisir une carte.
+     */
     @Transactional(readOnly = true)
-    public Optional<PublicMenu> buildPreview(UUID restaurantId) {
+    public Optional<PublicMenu> buildPreview(UUID restaurantId, MenuDesign overrides) {
         Restaurant restaurant = restaurantService.getOrThrow(restaurantId);
-        return menuRepository.findByRestaurantId(restaurantId)
-                .filter(menu -> menu.getType() == MenuType.STRUCTURED)
-                .map(menu -> build(restaurant, menu));
+        Optional<Menu> menu = menuRepository.findByRestaurantId(restaurantId)
+                .filter(m -> m.getType() == MenuType.STRUCTURED);
+
+        if (menu.isPresent()) {
+            return menu.map(m -> build(restaurant, m, overrides));
+        }
+        if (restaurant.getOffer() == RestaurantOffer.BASIC) {
+            return Optional.empty(); // BASIC n'a pas de page HTML : le PDF est le menu
+        }
+        return Optional.of(assemble(restaurant, MenuDesign.defaults().mergedWith(overrides), List.of()));
+    }
+
+    /**
+     * Le menu de ce client est-il actuellement diffusé ?
+     *
+     * Sert au seul bandeau d'aperçu : dire « ce menu n'est pas publié » à un
+     * restaurateur dont la carte est en ligne est un mensonge, et il en tirerait de
+     * mauvaises conclusions. Volontairement hors du {@link PublicMenu} : un statut
+     * d'administration n'a rien à faire dans la vue publique.
+     */
+    @Transactional(readOnly = true)
+    public boolean isPublished(UUID restaurantId) {
+        return menuRepository.findByRestaurantId(restaurantId).map(Menu::isPublished).orElse(false);
     }
 
     // ---------------------------------------------------------------- construction
 
-    private PublicMenu build(Restaurant restaurant, Menu menu) {
+    private PublicMenu build(Restaurant restaurant, Menu menu, MenuDesign overrides) {
         List<MenuCategory> categories = categoryRepository
                 .findByMenuIdOrderBySortOrderAscNameAsc(menu.getId()).stream()
                 .filter(MenuCategory::isVisible) // masquée = jamais rendue publiquement
@@ -117,11 +153,24 @@ public class PublicMenuService {
                                 .toList()))
                 .toList();
 
+        return assemble(restaurant, menu.getDesign().mergedWith(overrides), publicCategories);
+    }
+
+    /**
+     * Assemble la vue publique une fois les catégories filtrées. Passage obligé du rendu
+     * public comme de l'aperçu : le thème y est résolu une seule fois, au même endroit.
+     */
+    private PublicMenu assemble(Restaurant restaurant, MenuDesign design, List<PublicCategory> categories) {
+        MenuDesign effective = themeResolver.effectiveDesign(design, restaurant.getOffer());
+        String displayName = effective.brandName() == null || effective.brandName().isBlank()
+                ? restaurant.getName()
+                : effective.brandName();
+
         return new PublicMenu(
-                restaurant.getName(),
-                dominantCurrency(publicCategories),
-                MenuPreset.DEFAULT.name().toLowerCase(),
-                publicCategories);
+                displayName,
+                dominantCurrency(categories),
+                themeResolver.resolve(design, restaurant.getOffer()),
+                categories);
     }
 
     private Map<UUID, List<MenuItem>> loadItems(List<MenuCategory> categories) {

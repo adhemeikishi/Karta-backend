@@ -12,9 +12,11 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Accès public aux médias (PDF de menu BASIC). Sert le fichier depuis le disque,
- * jamais depuis la base. L'identifiant d'asset est immuable — un remplacement de
- * PDF crée un nouvel asset, donc une nouvelle URL — le cache peut donc être long.
+ * Accès public aux médias : PDF de menu (offre BASIC) et images de produits.
+ * Sert le fichier depuis le disque, jamais depuis la base.
+ *
+ * L'identifiant d'asset est immuable — remplacer un PDF ou une image crée un nouvel
+ * asset, donc une nouvelle URL — le cache peut donc être long.
  */
 @RestController
 public class MediaController {
@@ -31,17 +33,21 @@ public class MediaController {
         byte[] content = mediaService.readContent(asset);
 
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(MediaType.parseMediaType(asset.getContentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + downloadName(asset) + "\"")
                 .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
                 .eTag(asset.getId().toString())
                 .body(content);
     }
 
+    /**
+     * Nom de téléchargement. Le type MIME servi vient toujours de l'asset (donc de la
+     * signature validée à l'upload) : ce nom n'est qu'un libellé, il ne décide de rien.
+     */
     private static String downloadName(MediaAsset asset) {
         String name = asset.getOriginalFilename();
         if (name == null || name.isBlank()) {
-            return "menu.pdf";
+            return asset.getKind() == MediaKind.PDF ? "menu.pdf" : "image";
         }
         return name.replaceAll("[\\r\\n\"]", "");
     }

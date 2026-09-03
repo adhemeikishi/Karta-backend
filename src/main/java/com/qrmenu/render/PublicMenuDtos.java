@@ -20,9 +20,11 @@ public class PublicMenuDtos {
     }
 
     public record PublicMenu(
+            /* Nom affiché : le nom de marque PREMIUM s'il est défini, sinon celui du client. */
             String restaurantName,
             String currency,
-            String preset,
+            /* Apparence déjà résolue — le rendu n'a plus aucune couleur à calculer. */
+            MenuTheme theme,
             List<PublicCategory> categories
     ) {
         public boolean isEmpty() {

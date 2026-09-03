@@ -1,27 +1,17 @@
 <!--/*
-  Socle commun à tous les presets Karta : tokens de la direction artistique,
-  reset et primitives typographiques.
+  Socle commun aux pages publiques Karta.
 
-  Un preset importe ce fragment puis définit sa propre mise en page. Aucun
-  JavaScript, aucune police distante : le menu est scanné en 4G devant une
+  Deux fragments distincts :
+    - `reset`  : structurel uniquement, aucune couleur. Utilisé par le menu, dont les
+                 couleurs viennent du thème résolu (MenuTheme) et non d'ici.
+    - `tokens` : reset + palette Karta fixe, pour les pages qui n'ont pas de thème
+                 (page « menu indisponible »).
+
+  Aucun JavaScript, aucune police distante : le menu est scanné en 4G devant une
   table, il doit s'afficher immédiatement.
 */-->
-<th:block th:fragment="tokens" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="reset" xmlns:th="http://www.thymeleaf.org">
   <style>
-    :root {
-      --k-charcoal: #131312;
-      --k-persimmon: #f05a00;
-      --k-ivory: #f6f6f6;
-      --k-white: #ffffff;
-      --k-border: #e6e6e4;
-      --k-ink-600: #57564f;
-      --k-ink-400: #8c8b84;
-      --k-ink-100: #eeeee9;
-
-      --k-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-        Arial, "Noto Sans", sans-serif;
-    }
-
     *,
     *::before,
     *::after {
@@ -34,9 +24,6 @@
 
     body {
       margin: 0;
-      background-color: var(--k-ivory);
-      color: var(--k-charcoal);
-      font-family: var(--k-font);
       font-size: 16px;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
@@ -65,16 +52,41 @@
       overflow-wrap: anywhere;
     }
 
+    .k-tnum {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</th:block>
+
+<th:block th:fragment="tokens" xmlns:th="http://www.thymeleaf.org">
+  <th:block th:replace="~{menu/base :: reset}"></th:block>
+  <style>
+    :root {
+      --k-charcoal: #131312;
+      --k-persimmon: #f05a00;
+      --k-ivory: #f6f6f6;
+      --k-white: #ffffff;
+      --k-border: #e6e6e4;
+      --k-ink-600: #57564f;
+      --k-ink-400: #8c8b84;
+      --k-ink-100: #eeeee9;
+
+      --k-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+        Arial, "Noto Sans", sans-serif;
+    }
+
+    body {
+      background-color: var(--k-ivory);
+      color: var(--k-charcoal);
+      font-family: var(--k-font);
+    }
+
     .k-eyebrow {
       font-size: 0.6875rem;
       font-weight: 700;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--k-persimmon);
-    }
-
-    .k-tnum {
-      font-variant-numeric: tabular-nums;
     }
   </style>
 </th:block>

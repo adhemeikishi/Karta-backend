@@ -3,6 +3,8 @@ package com.qrmenu.admin;
 import com.qrmenu.media.MediaService;
 import com.qrmenu.qrcode.QrCodeRepository;
 import com.qrmenu.qrscan.QrScanRepository;
+import com.qrmenu.qrscan.QrScanService;
+import com.qrmenu.qrscan.QrScanService.RestaurantScanStats;
 import com.qrmenu.restaurant.Restaurant;
 import com.qrmenu.restaurant.RestaurantDtos.ChangeOfferRequest;
 import com.qrmenu.restaurant.RestaurantDtos.CreateRestaurantRequest;
@@ -25,17 +27,20 @@ public class RestaurantAdminController {
     private final RestaurantService restaurantService;
     private final QrCodeRepository qrCodeRepository;
     private final QrScanRepository qrScanRepository;
+    private final QrScanService qrScanService;
     private final MediaService mediaService;
 
     public RestaurantAdminController(
             RestaurantService restaurantService,
             QrCodeRepository qrCodeRepository,
             QrScanRepository qrScanRepository,
+            QrScanService qrScanService,
             MediaService mediaService
     ) {
         this.restaurantService = restaurantService;
         this.qrCodeRepository = qrCodeRepository;
         this.qrScanRepository = qrScanRepository;
+        this.qrScanService = qrScanService;
         this.mediaService = mediaService;
     }
 
@@ -68,6 +73,18 @@ public class RestaurantAdminController {
     @PutMapping("/{id}/offer")
     public RestaurantResponse changeOffer(@PathVariable UUID id, @Valid @RequestBody ChangeOfferRequest request) {
         return RestaurantResponse.from(restaurantService.changeOffer(id, request.offer()));
+    }
+
+    /**
+     * Statistiques de scans du client : 4 compteurs + série quotidienne sur 30 jours.
+     *
+     * Strictement filtré par client (voir {@code QrScanRepository}) : les scans d'un
+     * autre établissement ne peuvent pas entrer dans le résultat.
+     */
+    @GetMapping("/{id}/stats")
+    public RestaurantScanStats stats(@PathVariable UUID id) {
+        restaurantService.getOrThrow(id); // 404 explicite si le client n'existe pas
+        return qrScanService.restaurantStats(id);
     }
 
     /**

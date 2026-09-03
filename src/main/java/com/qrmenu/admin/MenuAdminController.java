@@ -1,6 +1,9 @@
 package com.qrmenu.admin;
 
 import com.qrmenu.common.InvalidUploadException;
+import com.qrmenu.menu.MenuDesignDtos.DesignResponse;
+import com.qrmenu.menu.MenuDesignDtos.SaveDesignRequest;
+import com.qrmenu.menu.MenuDesignService;
 import com.qrmenu.menu.MenuDtos.MenuResponse;
 import com.qrmenu.menu.MenuDtos.SaveMenuRequest;
 import com.qrmenu.menu.MenuService;
@@ -37,9 +40,11 @@ import java.util.UUID;
 public class MenuAdminController {
 
     private final MenuService menuService;
+    private final MenuDesignService designService;
 
-    public MenuAdminController(MenuService menuService) {
+    public MenuAdminController(MenuService menuService, MenuDesignService designService) {
         this.menuService = menuService;
+        this.designService = designService;
     }
 
     @GetMapping
@@ -71,6 +76,26 @@ public class MenuAdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMenu(@PathVariable UUID restaurantId) {
         menuService.deleteMenu(restaurantId);
+    }
+
+    /**
+     * Apparence du menu : preset et, pour PREMIUM, identité du restaurant.
+     *
+     * Séparé du contenu ({@code PUT .../menu}) : le studio doit pouvoir enregistrer un
+     * style sans réécrire toute la carte, et inversement.
+     */
+    @GetMapping("/design")
+    public DesignResponse getDesign(@PathVariable UUID restaurantId) {
+        return designService.getDesign(restaurantId);
+    }
+
+    /** Enregistre l'apparence. Ne publie rien : « Publier » reste une action distincte. */
+    @PutMapping("/design")
+    public DesignResponse saveDesign(
+            @PathVariable UUID restaurantId,
+            @Valid @RequestBody SaveDesignRequest request
+    ) {
+        return designService.saveDesign(restaurantId, request);
     }
 
     @PostMapping("/pdf")
