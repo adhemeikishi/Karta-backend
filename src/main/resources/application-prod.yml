@@ -14,6 +14,13 @@ server:
   # (voir procédure de déploiement) : permet à Spring de connaître le vrai protocole/IP client.
   forward-headers-strategy: framework
 
+# Le frontend Angular est servi depuis un domaine distinct (Cloudflare : https://kartaqr.fr),
+# le backend depuis le VPS (https://api.kartaqr.fr). Le back-office appelle /api/admin/**
+# en cross-origin : son origine doit être listée explicitement (jamais "*", jamais vide).
+# Surchargeable via CORS_ALLOWED_ORIGINS (CSV) pour un domaine de staging.
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://kartaqr.fr}
+
 management:
   endpoints:
     web:

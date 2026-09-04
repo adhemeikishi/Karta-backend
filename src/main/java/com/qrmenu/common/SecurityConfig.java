@@ -23,10 +23,12 @@ import java.util.List;
  * - Basic Auth sur /api/admin/**
  * - Tout le reste (redirection publique /q/**, actuator/health) reste ouvert
  * <p>
- * CORS : le back-office Angular (frontend) tourne sur une origine différente
- * en développement (localhost:4200 vs localhost:8080). En production, il est prévu
- * d'être servi depuis le même domaine (voir docs/DEPLOYMENT.md), donc aucune origine
- * autorisée par défaut - à configurer explicitement si jamais il est servi ailleurs.
+ * CORS : le back-office Angular (frontend) tourne sur une origine différente,
+ * en développement (localhost:4200 vs localhost:8080) comme en production
+ * (Cloudflare https://kartaqr.fr vs VPS https://api.kartaqr.fr). L'origine autorisée
+ * est déclarée explicitement par profil : application-dev.yml (localhost:4200) et
+ * application-prod.yml (https://kartaqr.fr), surchargeable via CORS_ALLOWED_ORIGINS.
+ * Aucune origine autorisée par défaut si la propriété est absente (fail safe).
  * <p>
  * À remplacer par une vraie solution d'authentification (JWT / comptes restaurants)
  * lorsque le produit évoluera au-delà de la V1. L'architecture (filtre de sécurité

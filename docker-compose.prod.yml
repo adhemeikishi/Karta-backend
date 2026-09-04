@@ -47,6 +47,8 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       QR_BASE_URL: ${QR_BASE_URL}
+      # Origine du back-office Angular (Cloudflare) autorisée en CORS sur /api/admin/**.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       # Répertoire de stockage des PDF de menu DANS le conteneur. Par défaut, le
       # point de montage préparé par le Dockerfile. Surchargeable via .env, mais
       # tout autre chemin impose d'adapter aussi Dockerfile (mkdir/chown).

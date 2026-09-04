@@ -5,29 +5,53 @@ peut scanner un QR en HTTPS, 24/7". Couvre uniquement le P0 (indispensable
 avant premier client). Le P1/P2 (monitoring avancé, CI/CD auto, rate
 limiting) viendront ensuite.
 
+## Architecture cible
+
+```
+https://kartaqr.fr        →  Cloudflare  →  frontend Angular (landing, login, back-office /admin)
+https://api.kartaqr.fr    →  VPS (Caddy → backend:8080)  →  Spring Boot
+    ├─ /api/admin/**   (Basic Auth ; CORS : https://kartaqr.fr uniquement)
+    ├─ /api/public/**
+    ├─ /q/{code}       ← URL encodée dans les QR imprimés
+    ├─ /m/{code}       ← page menu (cible du 302)
+    └─ /media/{id}     ← PDF / images (cible du 302)
+```
+
+Le domaine encodé dans les QR (`QR_BASE_URL`) est **`https://api.kartaqr.fr`** :
+il pointe toujours vers le backend et sert `/q`, `/m`, `/media`. Cette valeur est
+**figée dès la première impression de QR** — ne jamais la changer ensuite, sous
+peine de rendre inutilisables tous les QR déjà distribués.
+
+Ce document couvre le **backend sur le VPS**. Le déploiement du frontend Angular
+sur Cloudflare (build statique `dist/frontend/browser/`) est hors périmètre ici.
+
 ## 0. Prérequis
 
 - Un **VPS** (n'importe quel fournisseur : Hetzner, OVH, DigitalOcean...) avec
   Docker installé, Ubuntu 22.04/24.04 recommandé.
-- Un **nom de domaine** que tu contrôles (ex: `mondomaine.fr`), avec un
-  sous-domaine `qr.mondomaine.fr` prévu pour ce projet.
+- Le domaine `kartaqr.fr`, avec le sous-domaine **`api.kartaqr.fr`** dédié au
+  backend (le frontend utilise `kartaqr.fr` via Cloudflare, séparément).
 - Accès SSH au VPS.
 
 ## 1. Pointer le DNS vers le VPS
 
-Chez ton registrar / fournisseur DNS, crée un enregistrement :
+Chez ton fournisseur DNS, crée un enregistrement pour le sous-domaine backend :
 
 ```
 Type: A
-Nom:  qr
+Nom:  api
 Valeur: <IP publique du VPS>
 TTL: 3600 (ou automatique)
 ```
 
+> Si `api.kartaqr.fr` est géré dans Cloudflare, mettre l'enregistrement en
+> **DNS only** (nuage gris) pour le premier déploiement : Caddy doit joindre
+> directement le VPS pour obtenir le certificat Let's Encrypt.
+
 Vérifie la propagation (peut prendre de quelques minutes à quelques heures) :
 
 ```bash
-nslookup qr.mondomaine.fr
+nslookup api.kartaqr.fr
 ```
 
 ## 2. Préparer le VPS
@@ -76,23 +100,23 @@ nano .env
 Remplis avec de vraies valeurs fortes, en particulier :
 - `DB_PASSWORD` — génère-en un avec `openssl rand -base64 24`
 - `ADMIN_PASSWORD` — idem
-- `QR_BASE_URL=https://qr.mondomaine.fr` (le vrai domaine, en https)
+- `QR_BASE_URL=https://api.kartaqr.fr` — **valeur figée** : encodée dans chaque QR
+  imprimé, elle ne doit plus jamais changer une fois le premier QR distribué.
+- `CORS_ALLOWED_ORIGINS=https://kartaqr.fr` — origine du back-office Angular
+  (Cloudflare). Sans ça, le back-office ne peut pas appeler l'API depuis le
+  navigateur (erreur CORS).
 - `STORAGE_DIR` — **laisser la valeur par défaut** (`/var/lib/qrmenu/storage`). C'est
   le chemin, dans le conteneur backend, où sont stockés les PDF de menu ; un volume
   Docker persistant y est monté (voir §12).
 
-## 5. Adapter le Caddyfile à ton vrai domaine
+## 5. Vérifier le Caddyfile
 
-```bash
-nano Caddyfile
-```
-
-Remplace `qr.mondomaine.fr` par ton vrai domaine, et ajoute ton email pour
-Let's Encrypt en première ligne du bloc si tu veux être notifié en cas de
-souci de certificat :
+Le `Caddyfile` est déjà configuré pour `api.kartaqr.fr` (backend uniquement — le
+frontend est sur Cloudflare). Ajoute seulement ton email si tu veux les
+notifications d'expiration Let's Encrypt :
 
 ```
-qr.mondomaine.fr {
+api.kartaqr.fr {
     tls ton-email@example.com
     reverse_proxy backend:8080
     ...
@@ -120,7 +144,7 @@ docker compose -f docker-compose.prod.yml logs -f backend
 Puis, depuis n'importe quelle machine :
 
 ```bash
-curl https://qr.mondomaine.fr/actuator/health
+curl https://api.kartaqr.fr/actuator/health
 ```
 
 Doit renvoyer `{"status":"UP"}`, en HTTPS, avec un certificat valide.
@@ -175,7 +199,7 @@ attends. Pour la restauration des fichiers de menu, voir §12.
 Depuis ton PC (ou le VPS) :
 
 ```bash
-curl -u admin:TON_MOT_DE_PASSE -X POST https://qr.mondomaine.fr/api/admin/restaurants \
+curl -u admin:TON_MOT_DE_PASSE -X POST https://api.kartaqr.fr/api/admin/restaurants \
   -H "Content-Type: application/json" \
   -d '{"name":"Nom du restaurant","offer":"BASIC"}'
 ```
@@ -183,7 +207,7 @@ curl -u admin:TON_MOT_DE_PASSE -X POST https://qr.mondomaine.fr/api/admin/restau
 Récupère l'`id` renvoyé, puis crée son QR :
 
 ```bash
-curl -u admin:TON_MOT_DE_PASSE -X POST https://qr.mondomaine.fr/api/admin/restaurants/ID_RESTAURANT/qr-codes \
+curl -u admin:TON_MOT_DE_PASSE -X POST https://api.kartaqr.fr/api/admin/restaurants/ID_RESTAURANT/qr-codes \
   -H "Content-Type: application/json" \
   -d '{"name":"QR principal","destinationUrl":"https://url-du-vrai-menu"}'
 ```
@@ -193,15 +217,15 @@ sans jamais changer) :
 
 ```bash
 curl -u admin:TON_MOT_DE_PASSE -F "file=@menu.pdf;type=application/pdf" \
-  https://qr.mondomaine.fr/api/admin/restaurants/ID_RESTAURANT/menu/pdf
+  https://api.kartaqr.fr/api/admin/restaurants/ID_RESTAURANT/menu/pdf
 curl -u admin:TON_MOT_DE_PASSE -X PUT \
-  https://qr.mondomaine.fr/api/admin/restaurants/ID_RESTAURANT/menu/publish
+  https://api.kartaqr.fr/api/admin/restaurants/ID_RESTAURANT/menu/publish
 ```
 
 Télécharge le PNG du QR :
 
 ```bash
-curl -u admin:TON_MOT_DE_PASSE https://qr.mondomaine.fr/api/admin/qr-codes/ID_QR/image.png -o qr-final.png
+curl -u admin:TON_MOT_DE_PASSE https://api.kartaqr.fr/api/admin/qr-codes/ID_QR/image.png -o qr-final.png
 ```
 
 ## 10. Checklist avant de donner le QR au restaurant
@@ -264,7 +288,7 @@ Vérification manuelle (à faire une fois après le premier déploiement) :
 # 2. Forcer une recréation complète du backend
 docker compose -f docker-compose.prod.yml up -d --build --force-recreate backend
 # 3. Le PDF doit toujours répondre
-curl -I https://qr.mondomaine.fr/media/<id>   # -> 200, application/pdf
+curl -I https://api.kartaqr.fr/media/<id>   # -> 200, application/pdf
 ```
 
 ### Sauvegarde / restauration

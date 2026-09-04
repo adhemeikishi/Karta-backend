@@ -4,3 +4,8 @@ target/
 *.iml
 .vscode/
 *.log
+
+# Secrets : ne jamais envoyer .env dans le contexte de build Docker.
+.env
+.env.*
+!.env.example

@@ -1,11 +1,14 @@
 # Caddy gère automatiquement le certificat Let's Encrypt et le renouvellement.
 # Le HTTP est automatiquement redirigé vers HTTPS par Caddy (comportement par défaut).
 #
-# Remplacer qr.mondomaine.fr par le vrai domaine avant déploiement,
-# et remplacer l'email par une adresse réelle (utilisée par Let's Encrypt
-# pour les notifications d'expiration).
+# Ce Caddy ne sert QUE le backend (API + routes publiques /q /m /media) sur
+# api.kartaqr.fr. Le frontend Angular est hébergé séparément sur Cloudflare
+# (https://kartaqr.fr) et ne passe pas par ce reverse proxy.
+#
+# Ajouter une adresse email réelle si tu veux les notifications d'expiration
+# Let's Encrypt (première ligne du bloc : `tls ton-email@example.com`).
 
-qr.mondomaine.fr {
+api.kartaqr.fr {
     reverse_proxy backend:8080
 
     encode gzip
