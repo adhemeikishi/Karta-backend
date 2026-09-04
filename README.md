@@ -168,23 +168,35 @@ Les tests utilisent une base H2 en mémoire (profil `test`), aucune dépendance
 ## 6. Structure du projet
 
 ```
-qr-menu/
-├── backend/
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/qrmenu/
-│       │   ├── restaurant/   → Restaurant (entité, repo, service, DTOs)
-│       │   ├── qrcode/       → QrCode (entité, repo, service, génération PNG/SVG)
-│       │   ├── qrscan/       → QrScan (tracking des scans, stats)
-│       │   ├── redirect/     → GET /q/{code} (route publique)
-│       │   ├── admin/        → API admin (/api/admin/**)
-│       │   └── common/       → validation URL, sécurité, exceptions
-│       ├── main/resources/
-│       │   ├── application.yml
-│       │   └── db/migration/ → migrations Flyway
-│       └── test/java/com/qrmenu/...
+Karta-backend/
+├── pom.xml
+├── src/
+│   ├── main/java/com/qrmenu/
+│   │   ├── restaurant/   → Restaurant (entité, repo, service, DTOs)
+│   │   ├── qrcode/       → QrCode (entité, repo, service, génération PNG/SVG)
+│   │   ├── qrscan/       → QrScan (tracking des scans, stats)
+│   │   ├── redirect/     → GET /q/{code} (route publique)
+│   │   ├── render/       → menu public (Thymeleaf) + API publique
+│   │   ├── menu/         → menu structuré, presets, design
+│   │   ├── kartaai/      → extraction PDF → menu structuré
+│   │   ├── media/        → fichiers (PDF, images)
+│   │   ├── admin/        → API admin (/api/admin/**)
+│   │   └── common/       → validation URL, sécurité, exceptions
+│   ├── main/resources/
+│   │   ├── application.yml
+│   │   ├── templates/menu/ → pages publiques du menu
+│   │   └── db/migration/ → migrations Flyway
+│   └── test/java/com/qrmenu/...
+├── scripts/              → sauvegarde/restauration (Postgres, stockage)
+├── docs/
+├── Dockerfile
 ├── docker-compose.yml
+├── docker-compose.prod.yml
+├── Caddyfile
 └── README.md
+
+Le frontend Angular (landing, login, back-office) vit dans le repository
+séparé `Karta-frontend`.
 ```
 
 ## 7. Hors périmètre de cette V1

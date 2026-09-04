@@ -302,7 +302,7 @@ docker compose -f docker-compose.prod.yml start backend
 - Surveiller l'espace disque du VPS : un PDF peut peser jusqu'à 10 Mo par
   restaurant. `du -sh` sur le volume via
   `docker run --rm -v qrmenu-menu-storage:/data:ro alpine du -sh /data`.
-- Changer `STORAGE_DIR` impose d'adapter `backend/Dockerfile` (le point de montage
+- Changer `STORAGE_DIR` impose d'adapter `Dockerfile` (le point de montage
   doit exister dans l'image, appartenir à `qrmenu`) — sinon le conteneur ne
   pourra pas écrire.
 

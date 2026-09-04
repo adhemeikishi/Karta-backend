@@ -1,4 +1,4 @@
-# QRMenu V1
+# Karta — Backend (V1)
 
 ## Périmètre
 
@@ -28,44 +28,40 @@ Ne pas ajouter sans demande explicite :
 
 ## Commandes
 
-Backend :
+Backend (depuis la racine de ce repository) :
 
-- `cd backend && mvn test`
-- `cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=dev`
-
-Frontend :
-
-- `cd frontend && npm ci`
-- `cd frontend && ng build`
-- `cd frontend && ng test --watch=false --browsers=ChromeHeadless`
+- `mvn test`
+- `mvn spring-boot:run -Dspring-boot.run.profiles=dev`
 
 Infrastructure :
 
 - `docker compose up -d`
 
+Le frontend Angular vit dans le repository séparé `Karta-frontend`.
+
 ## Architecture
 
-Backend package-by-feature :
+Package-by-feature :
 
 - restaurant
 - qrcode
 - qrscan
 - redirect
+- render (menu public Thymeleaf + API publique)
+- menu (menu structuré, presets, design)
+- kartaai (extraction PDF → menu structuré)
+- media
 - admin
 - common
 
-Frontend :
-
-- Angular standalone
-- Tailwind CSS
-- services + models + components
-- auth guard + HTTP interceptor
+Le menu public (`/m/{code}`) et la redirection QR (`/q/{code}`) sont rendus par
+ce backend, pas par le frontend Angular.
 
 Base de données :
 
 - PostgreSQL
 - Flyway
-- migrations dans `backend/src/main/resources/db/migration`
+- migrations dans `src/main/resources/db/migration`
 - ne jamais modifier une migration déjà livrée ; créer une nouvelle migration
 
 ## Conventions
@@ -86,6 +82,8 @@ Base de données :
 - ne jamais construire dynamiquement la destination dans `RedirectController` ;
 - ne pas affaiblir `SecurityConfig` ;
 - `/api/admin/**` reste protégé ;
+- `cors.allowed-origins` doit lister explicitement l'origine du frontend
+  (le frontend est déployé sur un domaine distinct) ;
 - ne jamais exposer de stack trace ;
 - ne jamais désactiver une protection uniquement pour faire passer un test.
 

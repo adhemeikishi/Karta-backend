@@ -32,7 +32,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
     container_name: qrmenu-backend-prod
     restart: unless-stopped
     logging: *default-logging
@@ -49,7 +49,7 @@ services:
       QR_BASE_URL: ${QR_BASE_URL}
       # Répertoire de stockage des PDF de menu DANS le conteneur. Par défaut, le
       # point de montage préparé par le Dockerfile. Surchargeable via .env, mais
-      # tout autre chemin impose d'adapter aussi backend/Dockerfile (mkdir/chown).
+      # tout autre chemin impose d'adapter aussi Dockerfile (mkdir/chown).
       STORAGE_DIR: ${STORAGE_DIR:-/var/lib/qrmenu/storage}
     volumes:
       # Persistance des fichiers de menu (PDF BASIC). Volume nommé : survit à
