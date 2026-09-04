@@ -258,7 +258,7 @@ class MenuStructureServiceTest {
      * Atomicité de l'enregistrement : un payload avec un item invalide au milieu d'items
      * par ailleurs valides ne doit rien écrire — ni le nouveau contenu, ni une partie de
      * l'ancien remplacée. Représentatif du studio d'édition, qui envoie tout le document
-     * en un seul {@code PUT} (voir {@code MenuEditorComponent}, admin-frontend).
+     * en un seul {@code PUT} (voir {@code MenuEditorComponent}, frontend).
      */
     @Test
     void rejectsWholePayloadAtomicallyWhenOneItemIsInvalid() {

@@ -23,7 +23,7 @@ import java.util.List;
  * - Basic Auth sur /api/admin/**
  * - Tout le reste (redirection publique /q/**, actuator/health) reste ouvert
  * <p>
- * CORS : le back-office Angular (admin-frontend) tourne sur une origine différente
+ * CORS : le back-office Angular (frontend) tourne sur une origine différente
  * en développement (localhost:4200 vs localhost:8080). En production, il est prévu
  * d'être servi depuis le même domaine (voir docs/DEPLOYMENT.md), donc aucune origine
  * autorisée par défaut - à configurer explicitement si jamais il est servi ailleurs.

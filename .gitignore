@@ -28,7 +28,7 @@ Thumbs.db
 /.playwright-mcp/
 /*.png
 
-# Fichiers parasites à la racine (le vrai config VS Code vit dans admin-frontend/.vscode/)
+# Fichiers parasites à la racine (le vrai config VS Code vit dans frontend/.vscode/)
 /extensions.json
 /launch.json
 /tasks.json

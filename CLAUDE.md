@@ -35,9 +35,9 @@ Backend :
 
 Frontend :
 
-- `cd admin-frontend && npm ci`
-- `cd admin-frontend && ng build`
-- `cd admin-frontend && ng test --watch=false --browsers=ChromeHeadless`
+- `cd frontend && npm ci`
+- `cd frontend && ng build`
+- `cd frontend && ng test --watch=false --browsers=ChromeHeadless`
 
 Infrastructure :
 
