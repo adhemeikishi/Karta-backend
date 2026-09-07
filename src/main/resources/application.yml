@@ -74,11 +74,15 @@ admin:
 # La CLÉ N'A AUCUNE VALEUR PAR DÉFAUT et ne doit jamais figurer dans le code ni dans Git.
 # Absente = KartaAI simplement désactivé (le reste du produit fonctionne) ; c'est un
 # service optionnel, il ne doit pas empêcher le démarrage.
-# Le MODÈLE est configurable (KARTA_AI_MODEL) : il évolue plus vite que le code.
+# provider : `gemini` (défaut, GeminiMenuExtractor) ou `anthropic` (AnthropicMenuExtractor,
+#            historique — fournir alors KARTA_AI_MODEL/KARTA_AI_BASE_URL adaptés).
+# model    : configurable (KARTA_AI_MODEL) — les modèles évoluent plus vite que le code.
+# base-url : vide = chaque provider utilise son point d'entrée officiel.
 kartaai:
+  provider: ${KARTA_AI_PROVIDER:gemini}
   api-key: ${KARTA_AI_API_KEY:}
-  model: ${KARTA_AI_MODEL:claude-opus-5}
-  base-url: ${KARTA_AI_BASE_URL:https://api.anthropic.com}
+  model: ${KARTA_AI_MODEL:gemini-3.6-flash}
+  base-url: ${KARTA_AI_BASE_URL:}
   # Analyser une carte prend des dizaines de secondes ; borné pour ne pas immobiliser
   # un thread indéfiniment.
   timeout-seconds: ${KARTA_AI_TIMEOUT_SECONDS:120}

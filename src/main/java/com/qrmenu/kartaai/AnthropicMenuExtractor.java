@@ -6,6 +6,7 @@ import com.qrmenu.kartaai.ExtractionDtos.ExtractedMenu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -35,49 +36,20 @@ import java.util.Map;
  * au client et n'atteint jamais Angular. Sans clé, le composant se déclare simplement
  * indisponible : le démarrage de l'application n'échoue pas pour autant, KartaAI étant
  * une fonctionnalité optionnelle.
+ *
+ * <h2>Sélection</h2>
+ * Provider historique, désormais optionnel : chargé uniquement si {@code kartaai.provider=anthropic}.
+ * Le provider par défaut est {@link GeminiMenuExtractor}. En le sélectionnant, penser à
+ * fournir {@code KARTA_AI_MODEL} (un modèle Anthropic) et, au besoin, {@code KARTA_AI_BASE_URL}.
  */
 @Component
+@ConditionalOnProperty(name = "kartaai.provider", havingValue = "anthropic")
 public class AnthropicMenuExtractor implements MenuExtractor {
 
     private static final Logger log = LoggerFactory.getLogger(AnthropicMenuExtractor.class);
 
     /** Version de l'API Messages, exigée à chaque requête. */
     private static final String ANTHROPIC_VERSION = "2023-06-01";
-
-    /**
-     * Consigne d'extraction.
-     *
-     * Trois exigences non négociables y figurent : des centimes entiers (Karta n'exprime
-     * aucun montant en flottant), aucun HTML, et {@code price: null} plutôt qu'une
-     * invention quand le prix est illisible. Un prix inventé serait publié sans que
-     * personne ne le remarque — un prix absent est signalé en Review.
-     */
-    private static final String PROMPT = """
-            Tu extrais le contenu d'une carte de restaurant à partir du PDF fourni.
-
-            Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans bloc de
-            code, sans HTML. Format exact :
-
-            {"categories":[{"name":"...","items":[
-              {"name":"...","description":"...","price":950,"currency":"EUR",
-               "needsReview":false,"note":null}
-            ]}]}
-
-            Règles :
-            - "price" est un ENTIER en CENTIMES : 9,50 € s'écrit 950. Jamais de décimale.
-            - Si un prix est illisible, ambigu ou absent, mets "price": null et
-              "needsReview": true. N'invente JAMAIS un prix.
-            - "needsReview": true dès que tu as un doute sur un plat (nom coupé, deux
-              prix possibles, rattachement de catégorie incertain), avec une "note" très
-              courte en français expliquant le doute. Sinon "needsReview": false et
-              "note": null.
-            - "description" : la description du plat si elle figure sur la carte, sinon null.
-            - "currency" : code ISO du prix affiché ("EUR" par défaut).
-            - Respecte l'ordre et les catégories de la carte. N'invente aucun plat, aucune
-              catégorie, aucune description.
-            - Ignore ce qui n'est pas la carte : horaires, adresse, mentions légales, wifi.
-            - Si le document n'est pas une carte de restaurant, réponds {"categories":[]}.
-            """;
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
@@ -136,7 +108,7 @@ public class AnthropicMenuExtractor implements MenuExtractor {
         } catch (RestClientException e) {
             // Le message du fournisseur peut contenir des détails d'infrastructure :
             // journalisé côté serveur, jamais renvoyé au restaurateur.
-            log.warn("Extraction KartaAI en échec pour {}", safe(filename), e);
+            log.warn("Extraction KartaAI en échec pour {}", ExtractionSupport.safeFilename(filename), e);
             throw new ExtractionException(
                     "Le service d'analyse est momentanément indisponible. Réessayez dans un instant.", e);
         }
@@ -161,7 +133,7 @@ public class AnthropicMenuExtractor implements MenuExtractor {
         body.put("messages", List.of(Map.of(
                 "role", "user",
                 // Le document précède la consigne : l'ordre recommandé par l'API.
-                "content", List.of(document, Map.of("type", "text", "text", PROMPT)))));
+                "content", List.of(document, Map.of("type", "text", "text", ExtractionSupport.PROMPT)))));
         return body;
     }
 
@@ -172,7 +144,7 @@ public class AnthropicMenuExtractor implements MenuExtractor {
         try {
             root = objectMapper.readTree(responseBody);
         } catch (Exception e) {
-            log.warn("Réponse KartaAI illisible pour {}", safe(filename), e);
+            log.warn("Réponse KartaAI illisible pour {}", ExtractionSupport.safeFilename(filename), e);
             throw new ExtractionException("La réponse du service d'analyse est illisible.", e);
         }
 
@@ -185,9 +157,9 @@ public class AnthropicMenuExtractor implements MenuExtractor {
         }
 
         String text = concatText(root);
-        String json = extractJsonObject(text);
+        String json = ExtractionSupport.extractJsonObject(text);
         if (json == null) {
-            log.warn("Aucun JSON exploitable dans la réponse KartaAI pour {}", safe(filename));
+            log.warn("Aucun JSON exploitable dans la réponse KartaAI pour {}", ExtractionSupport.safeFilename(filename));
             throw new ExtractionException(
                     "Aucun plat n'a pu être lu dans ce PDF. "
                             + "Vérifiez qu'il s'agit bien d'une carte, puis réessayez.");
@@ -196,7 +168,7 @@ public class AnthropicMenuExtractor implements MenuExtractor {
         try {
             return objectMapper.readValue(json, ExtractedMenu.class);
         } catch (Exception e) {
-            log.warn("JSON KartaAI non conforme au contrat pour {}", safe(filename), e);
+            log.warn("JSON KartaAI non conforme au contrat pour {}", ExtractionSupport.safeFilename(filename), e);
             throw new ExtractionException(
                     "Le contenu extrait n'a pas pu être interprété. Réessayez.", e);
         }
@@ -211,31 +183,5 @@ public class AnthropicMenuExtractor implements MenuExtractor {
             }
         }
         return sb.toString();
-    }
-
-    /**
-     * Isole l'objet JSON du texte renvoyé.
-     *
-     * Le modèle est prié de ne rendre que du JSON, mais un préambule ou un bloc de code
-     * reste possible ; on ne fait pas dépendre le parcours d'une politesse de formatage.
-     * On borne sur les accolades extrêmes plutôt que d'utiliser une expression régulière :
-     * un JSON imbriqué la mettrait en défaut.
-     */
-    static String extractJsonObject(String text) {
-        if (text == null) {
-            return null;
-        }
-        int start = text.indexOf('{');
-        int end = text.lastIndexOf('}');
-        return (start < 0 || end <= start) ? null : text.substring(start, end + 1);
-    }
-
-    /** Un nom de fichier arrive du client : jamais journalisé brut (injection de log). */
-    private static String safe(String filename) {
-        if (filename == null) {
-            return "(sans nom)";
-        }
-        String cleaned = filename.replaceAll("[\\r\\n\\t]", "_");
-        return cleaned.length() <= 120 ? cleaned : cleaned.substring(0, 120);
     }
 }

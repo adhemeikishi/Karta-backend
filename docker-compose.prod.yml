@@ -49,6 +49,15 @@ services:
       QR_BASE_URL: ${QR_BASE_URL}
       # Origine du back-office Angular (Cloudflare) autorisée en CORS sur /api/admin/**.
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      # KartaAI (extraction PDF -> menu structuré). Sans clé, KartaAI est simplement
+      # désactivé — le reste du produit fonctionne. Les valeurs proviennent de .env
+      # (voir .env.example) ; celles avec un défaut restent optionnelles.
+      KARTA_AI_PROVIDER: ${KARTA_AI_PROVIDER:-gemini}
+      KARTA_AI_API_KEY: ${KARTA_AI_API_KEY:-}
+      KARTA_AI_MODEL: ${KARTA_AI_MODEL:-gemini-3.6-flash}
+      KARTA_AI_BASE_URL: ${KARTA_AI_BASE_URL:-}
+      KARTA_AI_TIMEOUT_SECONDS: ${KARTA_AI_TIMEOUT_SECONDS:-120}
+      KARTA_AI_MAX_TOKENS: ${KARTA_AI_MAX_TOKENS:-16000}
       # Répertoire de stockage des PDF de menu DANS le conteneur. Par défaut, le
       # point de montage préparé par le Dockerfile. Surchargeable via .env, mais
       # tout autre chemin impose d'adapter aussi Dockerfile (mkdir/chown).

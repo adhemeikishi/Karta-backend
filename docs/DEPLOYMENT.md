@@ -338,21 +338,35 @@ KartaAI transforme la carte PDF d'un client PRO / PREMIUM en menu structuré, ap
 relecture humaine. **Fonctionnalité optionnelle** : sans clé configurée, le reste du
 produit fonctionne normalement et l'analyse renvoie une erreur explicite.
 
+Provider par défaut : **Google Gemini** (`gemini-3.6-flash`). Le PDF est envoyé au
+modèle comme document (`inline_data`, `application/pdf`) ; aucune extraction texte côté
+serveur. Le provider historique **Anthropic** reste sélectionnable (`KARTA_AI_PROVIDER=anthropic`).
+
 ### Variables d'environnement
+
+À renseigner dans `.env` sur le VPS (voir §4). Elles sont transmises au conteneur
+`backend` par `docker-compose.prod.yml`. En développement local (`mvn spring-boot:run`),
+`.env` n'est pas chargé automatiquement : exporter la variable avant de lancer, p. ex.
+`KARTA_AI_API_KEY=… mvn spring-boot:run -Dspring-boot.run.profiles=dev`.
 
 | Variable | Obligatoire | Défaut | Rôle |
 | --- | --- | --- | --- |
-| `KARTA_AI_API_KEY` | pour activer KartaAI | *(vide = désactivé)* | Clé du fournisseur d'analyse |
-| `KARTA_AI_MODEL` | non | `claude-opus-5` | Modèle utilisé. **Configurable exprès** : les modèles évoluent plus vite que le code |
-| `KARTA_AI_BASE_URL` | non | `https://api.anthropic.com` | Point d'entrée de l'API |
+| `KARTA_AI_PROVIDER` | non | `gemini` | `gemini` ou `anthropic` |
+| `KARTA_AI_API_KEY` | pour activer KartaAI | *(vide = désactivé)* | Clé API du provider (Gemini : Google AI Studio) |
+| `KARTA_AI_MODEL` | non | `gemini-3.6-flash` | Modèle. **Configurable exprès** : les modèles évoluent plus vite que le code. Doit être valide pour le provider choisi |
+| `KARTA_AI_BASE_URL` | non | *(vide)* | Vide = point d'entrée officiel du provider (`generativelanguage.googleapis.com` / `api.anthropic.com`) |
 | `KARTA_AI_TIMEOUT_SECONDS` | non | `120` | Analyser une carte prend des dizaines de secondes |
-| `KARTA_AI_MAX_TOKENS` | non | `16000` | Plafond de la réponse |
+| `KARTA_AI_MAX_TOKENS` | non | `16000` | Plafond de la réponse (Gemini : réflexion désactivée, ce plafond sert au JSON) |
+
+> **Provider `anthropic` :** penser à fournir aussi `KARTA_AI_MODEL` (un modèle Anthropic) —
+> le défaut `gemini-3.6-flash` ne conviendrait pas.
 
 ### Sécurité
 
-- La clé vit **uniquement côté serveur**, en variable d'environnement. Jamais dans le
-  code, jamais commitée, jamais journalisée, et elle n'atteint jamais le back-office
-  Angular : le navigateur n'appelle que `/api/admin/...`.
+- La clé vit **uniquement côté serveur**, en variable d'environnement (en-tête
+  `x-goog-api-key` pour Gemini — jamais dans l'URL). Jamais dans le code, jamais
+  commitée, jamais journalisée, et elle n'atteint jamais le back-office Angular : le
+  navigateur n'appelle que `/api/admin/...`.
 - Le PDF analysé est toujours relu depuis le menu du client concerné. Aucun identifiant
   de document n'est accepté depuis l'extérieur — impossible de faire analyser la carte
   d'un autre restaurant.

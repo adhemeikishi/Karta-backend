@@ -137,9 +137,9 @@ class ExtractionValidatorTest {
     void isolatesTheJsonObjectFromSurroundingProse() {
         // Le modèle est prié de ne rendre que du JSON ; on ne fait pas dépendre le
         // parcours d'une politesse de formatage.
-        assertThat(AnthropicMenuExtractor.extractJsonObject("Voici :\n```json\n{\"a\":{\"b\":1}}\n```"))
+        assertThat(ExtractionSupport.extractJsonObject("Voici :\n```json\n{\"a\":{\"b\":1}}\n```"))
                 .isEqualTo("{\"a\":{\"b\":1}}");
-        assertThat(AnthropicMenuExtractor.extractJsonObject("aucun json ici")).isNull();
-        assertThat(AnthropicMenuExtractor.extractJsonObject(null)).isNull();
+        assertThat(ExtractionSupport.extractJsonObject("aucun json ici")).isNull();
+        assertThat(ExtractionSupport.extractJsonObject(null)).isNull();
     }
 }
