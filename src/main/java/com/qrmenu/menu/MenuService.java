@@ -128,9 +128,10 @@ public class MenuService {
         Restaurant restaurant = requireStructured(restaurantId);
         Menu menu = menuRepository.findByRestaurantId(restaurantId)
                 .orElseGet(() -> menuRepository.save(new Menu(restaurantId, MenuType.STRUCTURED)));
-        if (menu.getType() != MenuType.STRUCTURED) {
-            throw new ConflictException("Le menu de ce client n'est pas un menu structuré.");
-        }
+        // L'offre est déjà validée PRO/PREMIUM (requireStructured). Un menu PDF résiduel
+        // — client BASIC passé à PRO dont on valide la Review KartaAI — devient ici le
+        // menu structuré. Le PDF reste comme source ; la publication reste manuelle.
+        menu.convertToStructured();
 
         structureService.replace(restaurant, menu, categories);
         menu.bumpVersion();

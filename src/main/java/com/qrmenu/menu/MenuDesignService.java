@@ -74,9 +74,9 @@ public class MenuDesignService {
         Restaurant restaurant = requireStructuredOffer(restaurantId);
         Menu menu = menuRepository.findByRestaurantId(restaurantId)
                 .orElseGet(() -> menuRepository.save(new Menu(restaurantId, MenuType.STRUCTURED)));
-        if (menu.getType() != MenuType.STRUCTURED) {
-            throw new ConflictException("Le menu de ce client n'est pas un menu structuré.");
-        }
+        // Offre déjà validée PRO/PREMIUM : un menu PDF résiduel (client BASIC passé à PRO)
+        // devient structuré dès la première écriture de style. Le PDF reste comme source.
+        menu.convertToStructured();
 
         menu.applyDesign(merge(restaurant, menu.getDesign(), request));
         return toResponse(restaurant, menuRepository.save(menu).getDesign());

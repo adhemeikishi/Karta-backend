@@ -4,6 +4,7 @@ import com.qrmenu.common.InvalidMenuException;
 import com.qrmenu.media.MediaAsset;
 import com.qrmenu.media.MediaService;
 import com.qrmenu.media.TestImages;
+import com.qrmenu.menu.MenuDesignDtos.SaveDesignRequest;
 import com.qrmenu.menu.MenuDtos.MenuResponse;
 import com.qrmenu.menu.MenuDtos.SaveCategoryRequest;
 import com.qrmenu.menu.MenuDtos.SaveItemRequest;
@@ -39,6 +40,8 @@ class MenuOfferUpgradeTest {
 
     @Autowired
     private MenuService menuService;
+    @Autowired
+    private MenuDesignService menuDesignService;
     @Autowired
     private RestaurantService restaurantService;
     @Autowired
@@ -107,6 +110,59 @@ class MenuOfferUpgradeTest {
 
         assertThat(menuService.unpublish(r.getId()).published()).isFalse();
         assertThat(menuService.publish(r.getId()).published()).isTrue();
+    }
+
+    /**
+     * Le vrai parcours produit : BASIC + PDF publié → passage PRO → validation d'une
+     * structure (sortie de la Review KartaAI, ou saisie manuelle) via {@code saveStructure}.
+     * Avant correction : « Le menu de ce client n'est pas un menu structuré. »
+     *
+     * Le menu doit devenir STRUCTURED, contenu enregistré, mais rester NON publié :
+     * publier est une action distincte du restaurateur.
+     */
+    @Test
+    void basicUpgradedToProCanValidateAStructure() {
+        Restaurant r = basicWithPdf();
+        qrCodeService.create(r.getId(), "QR", "https://exemple.test/avant");
+        menuService.publish(r.getId());                       // le PDF est en ligne
+        restaurantService.changeOffer(r.getId(), RestaurantOffer.PRO);
+        // Avant validation, le menu reste le PDF (comportement de l'upgrade inchangé).
+        assertThat(menuService.getMenu(r.getId()).type()).isEqualTo(MenuType.PDF);
+
+        MenuResponse menu = menuService.saveStructure(r.getId(), List.of(new SaveCategoryRequest(
+                null, "Entrées", null, 0, true,
+                List.of(
+                        new SaveItemRequest(null, "Soupe du jour", "Légumes de saison", 750, "EUR", null, 0, true),
+                        new SaveItemRequest(null, "Salade César", null, 1200, "EUR", null, 1, true)))));
+
+        assertThat(menu.type()).isEqualTo(MenuType.STRUCTURED);
+        assertThat(menu.status()).isEqualTo(MenuStatus.READY);
+        assertThat(menu.published()).isFalse();
+        assertThat(menu.structure().categories()).hasSize(1);
+        assertThat(menu.structure().categories().get(0).name()).isEqualTo("Entrées");
+        assertThat(menu.structure().categories().get(0).items()).hasSize(2);
+        assertThat(menu.structure().categories().get(0).items().get(0).name()).isEqualTo("Soupe du jour");
+        assertThat(menu.structure().categories().get(0).items().get(1).price()).isEqualTo(1200);
+
+        // Le PDF est conservé comme document source ; le QR n'a pas été touché.
+        assertThat(menu.pdf()).isNotNull();
+        assertThat(menu.pdf().originalFilename()).isEqualTo("carte.pdf");
+    }
+
+    /** Même correction pour le studio de design : un menu PDF résiduel devient STRUCTURED. */
+    @Test
+    void basicUpgradedToProCanSaveADesign() {
+        Restaurant r = basicWithPdf();
+        menuService.publish(r.getId());
+        restaurantService.changeOffer(r.getId(), RestaurantOffer.PRO);
+
+        menuDesignService.saveDesign(
+                r.getId(), new SaveDesignRequest(MenuPreset.MODERN, null, null, null, null, null));
+
+        MenuResponse menu = menuService.getMenu(r.getId());
+        assertThat(menu.type()).isEqualTo(MenuType.STRUCTURED);
+        assertThat(menu.published()).isFalse();
+        assertThat(menu.pdf()).isNotNull();
     }
 
     // ------------------------------------------------------------- CAS 2

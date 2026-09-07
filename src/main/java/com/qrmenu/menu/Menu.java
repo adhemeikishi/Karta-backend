@@ -159,6 +159,30 @@ public class Menu {
     }
 
     /**
+     * Convertit un menu {@code PDF} en menu {@code STRUCTURED} : cas d'un client BASIC
+     * passé à PRO/PREMIUM dont la carte PDF vient d'être transformée (Review KartaAI,
+     * ou première écriture de structure/design). L'appelant a déjà vérifié que l'offre
+     * est PRO/PREMIUM.
+     *
+     * Le {@code pdfAssetId} est conservé : le PDF reste le document <em>source</em>.
+     * Un menu publié (le PDF servait le QR) repasse en {@code READY} — le contenu
+     * structuré n'est diffusé qu'après une publication explicite ; le QR continue de
+     * servir le PDF entre-temps (sa destination n'est pas modifiée ici).
+     * Idempotent : sans effet si le menu est déjà structuré.
+     */
+    public void convertToStructured() {
+        if (this.type == MenuType.STRUCTURED) {
+            return;
+        }
+        this.type = MenuType.STRUCTURED;
+        if (this.status == MenuStatus.PUBLISHED) {
+            this.status = MenuStatus.READY;
+            this.publishedAt = null;
+        }
+        touch();
+    }
+
+    /**
      * Applique une nouvelle apparence.
      *
      * Ne touche jamais au statut : un menu publié reste publié pendant que le
