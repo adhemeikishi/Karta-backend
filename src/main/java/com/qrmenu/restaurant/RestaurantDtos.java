@@ -39,6 +39,12 @@ public class RestaurantDtos {
             UUID id,
             String name,
             RestaurantOffer offer,
+            /**
+             * Date de fin d'onboarding, ou {@code null} s'il reste à faire. C'est ce
+             * champ — et lui seul — qui décide si le restaurateur ouvre son espace ou
+             * son parcours de configuration : le frontend n'a rien à mémoriser.
+             */
+            OffsetDateTime onboardingCompletedAt,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
@@ -47,6 +53,7 @@ public class RestaurantDtos {
                     restaurant.getId(),
                     restaurant.getName(),
                     restaurant.getOffer(),
+                    restaurant.getOnboardingCompletedAt(),
                     restaurant.getCreatedAt(),
                     restaurant.getUpdatedAt()
             );

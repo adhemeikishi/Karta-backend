@@ -1,6 +1,7 @@
 package com.qrmenu.admin;
 
 import com.qrmenu.menu.MenuDesign;
+import com.qrmenu.menu.MenuFont;
 import com.qrmenu.menu.MenuPreset;
 import com.qrmenu.render.MenuRenderer;
 import com.qrmenu.render.PublicMenuDtos.PublicMenu;
@@ -25,7 +26,8 @@ import java.util.UUID;
  *
  * <h2>Aperçu d'un design non enregistré</h2>
  * Les paramètres optionnels ({@code preset}, {@code brandName}, {@code primaryColor},
- * {@code secondaryColor}, {@code logoAssetId}, {@code heroAssetId}) sont appliqués
+ * {@code secondaryColor}, {@code logoAssetId}, {@code heroAssetId}, {@code hideBranding},
+ * {@code font}) sont appliqués
  * <strong>par-dessus</strong> le design enregistré, sans rien écrire en base. C'est ce
  * qui permet à l'aperçu de suivre un clic sur un preset avant « Enregistrer », tout en
  * gardant un seul et même renderer pour l'aperçu et la page publique.
@@ -57,12 +59,16 @@ public class MenuPreviewController {
             @RequestParam(required = false) String secondaryColor,
             @RequestParam(required = false) UUID logoAssetId,
             @RequestParam(required = false) UUID heroAssetId,
+            @RequestParam(required = false) Boolean hideBranding,
+            @RequestParam(required = false) MenuFont font,
+            @RequestParam(required = false) String lang,
             Model model,
             HttpServletResponse response
     ) {
         MenuDesign overrides = new MenuDesign(
-                preset, brandName, primaryColor, secondaryColor, logoAssetId, heroAssetId);
-        Optional<PublicMenu> menu = publicMenuService.buildPreview(restaurantId, overrides);
+                preset, brandName, primaryColor, secondaryColor, logoAssetId, heroAssetId,
+                hideBranding, font, null, null);
+        Optional<PublicMenu> menu = publicMenuService.buildPreview(restaurantId, overrides, lang);
 
         // L'aperçu suit l'état d'édition en cours : le mettre en cache afficherait un
         // style déjà remplacé au clic suivant.

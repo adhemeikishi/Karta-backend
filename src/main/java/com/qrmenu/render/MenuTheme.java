@@ -12,7 +12,9 @@ package com.qrmenu.render;
  * @param preset      identifiant stable ({@code modern}, {@code street_food}, ...)
  * @param presetLabel libellé affichable
  * @param density     rythme vertical, appliqué comme classe sur {@code <body>}
- * @param fontStack   pile typographique complète (aucune police distante)
+ * @param fontStack   pile typographique complète
+ * @param fontUrl     feuille de style de la police PREMIUM à charger, ou {@code null}
+ *                    (aucune police distante par défaut)
  * @param background  fond de page
  * @param surface     fond des blocs posés sur la page
  * @param border      filets et séparateurs
@@ -23,12 +25,14 @@ package com.qrmenu.render;
  * @param dark        vrai si le fond est sombre — pilote quelques ajustements du rendu
  * @param logoUrl     logo PREMIUM, ou {@code null}
  * @param heroUrl     image d'en-tête PREMIUM, ou {@code null}
+ * @param branding    vrai pour afficher la marque Karta en pied de page
  */
 public record MenuTheme(
         String preset,
         String presetLabel,
         String density,
         String fontStack,
+        String fontUrl,
         String background,
         String surface,
         String border,
@@ -38,6 +42,7 @@ public record MenuTheme(
         String accentText,
         boolean dark,
         String logoUrl,
-        String heroUrl
+        String heroUrl,
+        boolean branding
 ) {
 }

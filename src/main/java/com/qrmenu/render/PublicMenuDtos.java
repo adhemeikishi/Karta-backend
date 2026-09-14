@@ -25,11 +25,20 @@ public class PublicMenuDtos {
             String currency,
             /* Apparence déjà résolue — le rendu n'a plus aucune couleur à calculer. */
             MenuTheme theme,
+            /* Langue de cette vue : les noms et descriptions ci-dessous sont déjà traduits. */
+            PublicLanguage language,
+            /* Langues proposées au lecteur (français inclus). Une seule = pas de sélecteur. */
+            List<PublicLanguage> languages,
+            /* Libellés fixes du gabarit (« Menu », « Indisponible »…) dans la langue de la vue. */
+            MenuLabels labels,
             List<PublicCategory> categories
     ) {
         public boolean isEmpty() {
             return categories.isEmpty();
         }
+    }
+
+    public record PublicLanguage(String code, String label) {
     }
 
     public record PublicCategory(

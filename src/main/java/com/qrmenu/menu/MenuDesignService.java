@@ -1,11 +1,14 @@
 package com.qrmenu.menu;
 
 import com.qrmenu.common.ConflictException;
+import com.qrmenu.common.InvalidMenuException;
 import com.qrmenu.common.PublicUrlBuilder;
 import com.qrmenu.media.MediaService;
 import com.qrmenu.menu.MenuDesignDtos.Customization;
 import com.qrmenu.menu.MenuDesignDtos.DesignResponse;
+import com.qrmenu.menu.MenuDesignDtos.QrCustomization;
 import com.qrmenu.menu.MenuDesignDtos.SaveDesignRequest;
+import com.qrmenu.qrcode.QrStyle;
 import com.qrmenu.restaurant.Restaurant;
 import com.qrmenu.restaurant.RestaurantOffer;
 import com.qrmenu.restaurant.RestaurantService;
@@ -96,7 +99,24 @@ public class MenuDesignService {
                     current.primaryColor(),
                     current.secondaryColor(),
                     current.logoAssetId(),
-                    current.heroAssetId());
+                    current.heroAssetId(),
+                    current.hideBranding(),
+                    current.font(),
+                    current.languages(),
+                    current.qr());
+        }
+        QrDesign qr = new QrDesign(
+                upperOrNull(request.qrFgColor()),
+                upperOrNull(request.qrBgColor()),
+                request.qrModuleStyle(),
+                request.qrEyeStyle(),
+                mediaService.requireOwnedImage(restaurant.getId(), request.qrLogoAssetId()));
+        // Seule limite posée à la personnalisation du QR : il doit rester lisible.
+        if (!QrStyle.isScannable(
+                qr.fgColor() == null ? QrStyle.DEFAULT.fgColor() : qr.fgColor(),
+                qr.bgColor() == null ? QrStyle.DEFAULT.bgColor() : qr.bgColor())) {
+            throw new InvalidMenuException(
+                    "Ces couleurs rendraient le QR code illisible : choisissez des modules nettement plus foncés que le fond.");
         }
         return new MenuDesign(
                 request.preset(),
@@ -104,7 +124,11 @@ public class MenuDesignService {
                 upperOrNull(request.primaryColor()),
                 upperOrNull(request.secondaryColor()),
                 mediaService.requireOwnedImage(restaurant.getId(), request.logoAssetId()),
-                mediaService.requireOwnedImage(restaurant.getId(), request.heroAssetId()));
+                mediaService.requireOwnedImage(restaurant.getId(), request.heroAssetId()),
+                Boolean.TRUE.equals(request.hideBranding()),
+                request.font(),
+                current.languages(), // écrites avec le contenu, jamais ici
+                qr);
     }
 
     private Restaurant requireStructuredOffer(UUID restaurantId) {
@@ -121,6 +145,7 @@ public class MenuDesignService {
                 restaurant.getOffer() == RestaurantOffer.PREMIUM,
                 design.preset(),
                 DesignResponse.catalogue(),
+                DesignResponse.fontCatalogue(),
                 new Customization(
                         design.brandName(),
                         design.primaryColor(),
@@ -128,7 +153,17 @@ public class MenuDesignService {
                         design.logoAssetId(),
                         design.logoAssetId() == null ? null : urlBuilder.forAsset(design.logoAssetId()),
                         design.heroAssetId(),
-                        design.heroAssetId() == null ? null : urlBuilder.forAsset(design.heroAssetId())));
+                        design.heroAssetId() == null ? null : urlBuilder.forAsset(design.heroAssetId()),
+                        design.isBrandingHidden(),
+                        design.font(),
+                        design.languagesOrEmpty().stream().map(MenuLanguage::code).toList(),
+                        new QrCustomization(
+                                design.qr().fgColor(),
+                                design.qr().bgColor(),
+                                design.qr().moduleStyle(),
+                                design.qr().eyeStyle(),
+                                design.qr().logoAssetId(),
+                                design.qr().logoAssetId() == null ? null : urlBuilder.forAsset(design.qr().logoAssetId()))));
     }
 
     private static String blankToNull(String raw) {

@@ -2,7 +2,11 @@ package com.qrmenu.menu;
 
 import jakarta.persistence.*;
 
+import com.qrmenu.qrcode.QrEyeStyle;
+import com.qrmenu.qrcode.QrModuleStyle;
+
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -79,6 +83,35 @@ public class Menu {
 
     @Column(name = "hero_asset_id")
     private UUID heroAssetId;
+
+    /** Personnalisation avancée PREMIUM (V9). Mêmes règles que les cinq colonnes ci-dessus. */
+    @Column(name = "hide_branding", nullable = false)
+    private boolean hideBranding;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32)
+    private MenuFont font;
+
+    /** Codes ISO séparés par des virgules (« en,es »), voir {@link MenuLanguage}. */
+    @Column(length = 32)
+    private String languages;
+
+    @Column(name = "qr_fg_color", length = 7)
+    private String qrFgColor;
+
+    @Column(name = "qr_bg_color", length = 7)
+    private String qrBgColor;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "qr_module_style", length = 16)
+    private QrModuleStyle qrModuleStyle;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "qr_eye_style", length = 16)
+    private QrEyeStyle qrEyeStyle;
+
+    @Column(name = "qr_logo_asset_id")
+    private UUID qrLogoAssetId;
 
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
@@ -195,6 +228,21 @@ public class Menu {
         this.secondaryColor = design.secondaryColor();
         this.logoAssetId = design.logoAssetId();
         this.heroAssetId = design.heroAssetId();
+        this.hideBranding = design.isBrandingHidden();
+        this.font = design.font();
+        this.languages = MenuLanguage.format(design.languages());
+        QrDesign qr = design.qr();
+        this.qrFgColor = qr.fgColor();
+        this.qrBgColor = qr.bgColor();
+        this.qrModuleStyle = qr.moduleStyle();
+        this.qrEyeStyle = qr.eyeStyle();
+        this.qrLogoAssetId = qr.logoAssetId();
+        touch();
+    }
+
+    /** Langues activées, pour la lecture du contenu sans passer par tout le design. */
+    public void applyLanguages(List<MenuLanguage> value) {
+        this.languages = MenuLanguage.format(value);
         touch();
     }
 
@@ -254,7 +302,11 @@ public class Menu {
                 primaryColor,
                 secondaryColor,
                 logoAssetId,
-                heroAssetId);
+                heroAssetId,
+                hideBranding,
+                font,
+                MenuLanguage.parse(languages),
+                new QrDesign(qrFgColor, qrBgColor, qrModuleStyle, qrEyeStyle, qrLogoAssetId));
     }
 
     public OffsetDateTime getPublishedAt() {

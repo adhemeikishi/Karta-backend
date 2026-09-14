@@ -7,12 +7,15 @@ import com.qrmenu.menu.MenuCategoryRepository;
 import com.qrmenu.menu.MenuItem;
 import com.qrmenu.menu.MenuDesign;
 import com.qrmenu.menu.MenuItemRepository;
+import com.qrmenu.menu.MenuLanguage;
 import com.qrmenu.menu.MenuRepository;
 import com.qrmenu.menu.MenuType;
+import com.qrmenu.menu.Translation;
 import com.qrmenu.qrcode.QrCode;
 import com.qrmenu.qrcode.QrCodeRepository;
 import com.qrmenu.render.PublicMenuDtos.PublicCategory;
 import com.qrmenu.render.PublicMenuDtos.PublicItem;
+import com.qrmenu.render.PublicMenuDtos.PublicLanguage;
 import com.qrmenu.render.PublicMenuDtos.PublicMenu;
 import com.qrmenu.restaurant.Restaurant;
 import com.qrmenu.restaurant.RestaurantOffer;
@@ -24,12 +27,14 @@ import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.util.Currency;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Construit la vue publique d'un menu structuré.
@@ -37,7 +42,7 @@ import java.util.stream.Collectors;
  * Deux entrées, une seule logique de construction :
  * <ul>
  *   <li>{@link #findPublic(String)} — accès public, n'accepte qu'un menu PUBLISHED ;</li>
- *   <li>{@link #buildPreview(UUID, com.qrmenu.menu.MenuDesign)} — aperçu du studio, tout statut.</li>
+ *   <li>{@link #buildPreview(UUID, com.qrmenu.menu.MenuDesign, String)} — aperçu du studio, tout statut.</li>
  * </ul>
  *
  * C'est ici — et pas dans le template — que le contenu non diffusable est écarté :
@@ -82,6 +87,12 @@ public class PublicMenuService {
      */
     @Transactional(readOnly = true)
     public Optional<PublicMenu> findPublic(String qrCode) {
+        return findPublic(qrCode, null);
+    }
+
+    /** @param lang code ISO demandé ({@code ?lang=}) ; inconnu, non activé ou absent = français. */
+    @Transactional(readOnly = true)
+    public Optional<PublicMenu> findPublic(String qrCode, String lang) {
         Optional<QrCode> qr = qrCodeRepository.findByCode(qrCode).filter(QrCode::isActive);
         if (qr.isEmpty()) {
             return Optional.empty();
@@ -91,7 +102,7 @@ public class PublicMenuService {
         return menuRepository.findByRestaurantId(restaurantId)
                 .filter(menu -> menu.getType() == MenuType.STRUCTURED)
                 .filter(Menu::isPublished)
-                .map(menu -> build(restaurantService.getOrThrow(restaurantId), menu, null));
+                .map(menu -> build(restaurantService.getOrThrow(restaurantId), menu, null, lang));
     }
 
     /**
@@ -107,18 +118,19 @@ public class PublicMenuService {
      * sinon choisir un style imposerait d'abord de saisir une carte.
      */
     @Transactional(readOnly = true)
-    public Optional<PublicMenu> buildPreview(UUID restaurantId, MenuDesign overrides) {
+    public Optional<PublicMenu> buildPreview(UUID restaurantId, MenuDesign overrides, String lang) {
         Restaurant restaurant = restaurantService.getOrThrow(restaurantId);
         Optional<Menu> menu = menuRepository.findByRestaurantId(restaurantId)
                 .filter(m -> m.getType() == MenuType.STRUCTURED);
 
         if (menu.isPresent()) {
-            return menu.map(m -> build(restaurant, m, overrides));
+            return menu.map(m -> build(restaurant, m, overrides, lang));
         }
         if (restaurant.getOffer() == RestaurantOffer.BASIC) {
             return Optional.empty(); // BASIC n'a pas de page HTML : le PDF est le menu
         }
-        return Optional.of(assemble(restaurant, MenuDesign.defaults().mergedWith(overrides), List.of()));
+        MenuDesign design = MenuDesign.defaults().mergedWith(overrides);
+        return Optional.of(assemble(restaurant, design, languageFor(restaurant, design, lang), List.of()));
     }
 
     /**
@@ -136,7 +148,12 @@ public class PublicMenuService {
 
     // ---------------------------------------------------------------- construction
 
-    private PublicMenu build(Restaurant restaurant, Menu menu, MenuDesign overrides) {
+    private PublicMenu build(Restaurant restaurant, Menu menu, MenuDesign overrides, String lang) {
+        MenuDesign design = menu.getDesign().mergedWith(overrides);
+        MenuLanguage language = languageFor(restaurant, design, lang);
+        // Photos : PREMIUM. Hors PREMIUM elles restent en base mais n'atteignent pas le HTML.
+        boolean photos = restaurant.getOffer() == RestaurantOffer.PREMIUM;
+
         List<MenuCategory> categories = categoryRepository
                 .findByMenuIdOrderBySortOrderAscNameAsc(menu.getId()).stream()
                 .filter(MenuCategory::isVisible) // masquée = jamais rendue publiquement
@@ -145,32 +162,62 @@ public class PublicMenuService {
         Map<UUID, List<MenuItem>> itemsByCategory = loadItems(categories);
 
         List<PublicCategory> publicCategories = categories.stream()
-                .map(category -> new PublicCategory(
-                        category.getName(),
-                        category.getDescription(),
-                        itemsByCategory.getOrDefault(category.getId(), List.of()).stream()
-                                .map(this::toPublicItem)
-                                .toList()))
+                .map(category -> {
+                    Translation t = category.getTranslations().get(language.code());
+                    return new PublicCategory(
+                            translated(t == null ? null : t.name(), category.getName()),
+                            translated(t == null ? null : t.description(), category.getDescription()),
+                            itemsByCategory.getOrDefault(category.getId(), List.of()).stream()
+                                    .map(item -> toPublicItem(item, language, photos))
+                                    .toList());
+                })
                 .toList();
 
-        return assemble(restaurant, menu.getDesign().mergedWith(overrides), publicCategories);
+        return assemble(restaurant, design, language, publicCategories);
+    }
+
+    /**
+     * Langue de la vue : celle demandée si le client l'a activée (PREMIUM), sinon le
+     * français. Un {@code ?lang=} hors catalogue ne produit jamais d'erreur.
+     */
+    private MenuLanguage languageFor(Restaurant restaurant, MenuDesign design, String lang) {
+        MenuLanguage requested = MenuLanguage.fromCode(lang);
+        List<MenuLanguage> enabled = themeResolver.effectiveDesign(design, restaurant.getOffer()).languagesOrEmpty();
+        return requested != null && enabled.contains(requested) ? requested : MenuLanguage.BASE;
     }
 
     /**
      * Assemble la vue publique une fois les catégories filtrées. Passage obligé du rendu
      * public comme de l'aperçu : le thème y est résolu une seule fois, au même endroit.
      */
-    private PublicMenu assemble(Restaurant restaurant, MenuDesign design, List<PublicCategory> categories) {
+    private PublicMenu assemble(
+            Restaurant restaurant,
+            MenuDesign design,
+            MenuLanguage language,
+            List<PublicCategory> categories
+    ) {
         MenuDesign effective = themeResolver.effectiveDesign(design, restaurant.getOffer());
         String displayName = effective.brandName() == null || effective.brandName().isBlank()
                 ? restaurant.getName()
                 : effective.brandName();
 
+        List<PublicLanguage> languages = new ArrayList<>();
+        Stream.concat(Stream.of(MenuLanguage.BASE), effective.languagesOrEmpty().stream())
+                .forEach(l -> languages.add(new PublicLanguage(l.code(), l.shortLabel())));
+
         return new PublicMenu(
                 displayName,
                 dominantCurrency(categories),
                 themeResolver.resolve(design, restaurant.getOffer()),
+                new PublicLanguage(language.code(), language.shortLabel()),
+                languages,
+                MenuLabels.of(language),
                 categories);
+    }
+
+    /** Une traduction absente ou vide retombe sur le texte de base — jamais une chaîne vide. */
+    private static String translated(String translation, String base) {
+        return translation == null || translation.isBlank() ? base : translation;
     }
 
     private Map<UUID, List<MenuItem>> loadItems(List<MenuCategory> categories) {
@@ -182,14 +229,15 @@ public class PublicMenuService {
                 .collect(Collectors.groupingBy(MenuItem::getCategoryId, LinkedHashMap::new, Collectors.toList()));
     }
 
-    private PublicItem toPublicItem(MenuItem item) {
+    private PublicItem toPublicItem(MenuItem item, MenuLanguage language, boolean photos) {
+        Translation t = item.getTranslations().get(language.code());
         return new PublicItem(
-                item.getName(),
-                item.getDescription(),
+                translated(t == null ? null : t.name(), item.getName()),
+                translated(t == null ? null : t.description(), item.getDescription()),
                 item.getPriceCents(),
                 item.getCurrency(),
                 formatPrice(item.getPriceCents(), item.getCurrency()),
-                item.getImageAssetId() == null ? null : urlBuilder.forAsset(item.getImageAssetId()),
+                photos && item.getImageAssetId() != null ? urlBuilder.forAsset(item.getImageAssetId()) : null,
                 item.isAvailable());
     }
 

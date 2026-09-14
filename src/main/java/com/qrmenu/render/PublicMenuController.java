@@ -7,6 +7,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Optional;
 
@@ -29,8 +30,13 @@ public class PublicMenuController {
     }
 
     @GetMapping("/m/{code}")
-    public String menu(@PathVariable String code, Model model, HttpServletResponse response) {
-        Optional<PublicMenu> menu = publicMenuService.findPublic(code);
+    public String menu(
+            @PathVariable String code,
+            @RequestParam(required = false) String lang,
+            Model model,
+            HttpServletResponse response
+    ) {
+        Optional<PublicMenu> menu = publicMenuService.findPublic(code, lang);
 
         if (menu.isEmpty()) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);

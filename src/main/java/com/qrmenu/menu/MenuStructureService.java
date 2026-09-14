@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.Currency;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -73,17 +74,22 @@ public class MenuStructureService {
                         category.getDescription(),
                         category.getSortOrder(),
                         category.isVisible(),
+                        category.getTranslations(),
                         itemsByCategory.getOrDefault(category.getId(), List.of()).stream()
                                 .map(this::toItemResponse)
                                 .toList()))
                 .toList();
 
-        return new MenuStructure(restaurant.getName(), dominantCurrency(itemsByCategory), categoryResponses);
+        return new MenuStructure(
+                restaurant.getName(),
+                dominantCurrency(itemsByCategory),
+                menu.getDesign().languagesOrEmpty().stream().map(MenuLanguage::code).toList(),
+                categoryResponses);
     }
 
     /** Structure vide d'un client qui n'a pas encore de menu en base. */
     public MenuStructure emptyStructure(Restaurant restaurant) {
-        return new MenuStructure(restaurant.getName(), DEFAULT_CURRENCY, List.of());
+        return new MenuStructure(restaurant.getName(), DEFAULT_CURRENCY, List.of(), List.of());
     }
 
     public boolean hasContent(UUID menuId) {
@@ -102,6 +108,10 @@ public class MenuStructureService {
     @Transactional
     public void replace(Restaurant restaurant, Menu menu, List<SaveCategoryRequest> requestedCategories) {
         List<SaveCategoryRequest> incoming = requestedCategories == null ? List.of() : requestedCategories;
+        // Photos et traductions sont réservées à PREMIUM au RENDU (PublicMenuService) : ici
+        // elles sont validées et stockées pour toute offre structurée, comme l'identité du
+        // design — un client qui change d'offre ne perd rien, et ne gagne rien tant qu'il
+        // n'est pas PREMIUM.
 
         Map<UUID, MenuCategory> existingCategories = categoryRepository
                 .findByMenuIdOrderBySortOrderAscNameAsc(menu.getId()).stream()
@@ -120,7 +130,8 @@ public class MenuStructureService {
                     requireName(request.name(), "le nom de la catégorie est obligatoire"),
                     blankToNull(request.description()),
                     requireSortOrder(request.sortOrder(), i),
-                    request.visible() == null || request.visible());
+                    request.visible() == null || request.visible(),
+                    cleanTranslations(request.translations(), 120));
             categoryRepository.save(category);
 
             List<SaveItemRequest> items = request.items() == null ? List.of() : request.items();
@@ -136,7 +147,8 @@ public class MenuStructureService {
                         normalizeCurrency(itemRequest.currency()),
                         validateImage(restaurant.getId(), itemRequest.imageAssetId()),
                         requireSortOrder(itemRequest.sortOrder(), j),
-                        itemRequest.available() == null || itemRequest.available());
+                        itemRequest.available() == null || itemRequest.available(),
+                        cleanTranslations(itemRequest.translations(), 160));
                 itemRepository.save(item);
             }
         }
@@ -225,7 +237,8 @@ public class MenuStructureService {
                 item.getImageAssetId(),
                 item.getImageAssetId() == null ? null : mediaUrlBuilder.forAsset(item.getImageAssetId()),
                 item.getSortOrder(),
-                item.isAvailable());
+                item.isAvailable(),
+                item.getTranslations());
     }
 
     /**
@@ -238,6 +251,35 @@ public class MenuStructureService {
                 .map(MenuItem::getCurrency)
                 .findFirst()
                 .orElse(DEFAULT_CURRENCY);
+    }
+
+    /**
+     * Ne garde que les langues du catalogue (jamais le français, qui est le texte de base),
+     * sans champs vides ni blancs autour. Les longueurs sont celles des colonnes de base.
+     */
+    static Map<String, Translation> cleanTranslations(Map<String, Translation> raw, int maxName) {
+        Map<String, Translation> clean = new HashMap<>();
+        if (raw == null) {
+            return clean;
+        }
+        raw.forEach((code, translation) -> {
+            MenuLanguage language = MenuLanguage.fromCode(code);
+            if (language == null || language == MenuLanguage.BASE || translation == null) {
+                return;
+            }
+            String name = blankToNull(translation.name());
+            String description = blankToNull(translation.description());
+            if (name != null && name.length() > maxName) {
+                throw new InvalidMenuException("Traduction trop longue (" + language.code() + ") : " + name);
+            }
+            if (description != null && description.length() > 2000) {
+                throw new InvalidMenuException("Description traduite trop longue (" + language.code() + ")");
+            }
+            if (name != null || description != null) {
+                clean.put(language.code(), new Translation(name, description));
+            }
+        });
+        return clean;
     }
 
     private static String requireName(String raw, String message) {

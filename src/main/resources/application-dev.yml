@@ -6,6 +6,25 @@ admin:
   username: ${ADMIN_USERNAME:admin}
   password: ${ADMIN_PASSWORD:dev-only-changeme}
 
+# Compte RESTAURATEUR de test (Espace Restaurateur), developpement local uniquement.
+#
+# Les trois valeurs doivent etre presentes pour que le compte existe (voir
+# SecurityConfig.restaurateurAccountConfigured). Le mot de passe n'a VOLONTAIREMENT
+# aucune valeur par defaut : il n'a rien a faire dans Git. Sans RESTAURATEUR_PASSWORD
+# dans l'environnement, aucun second compte n'est cree et le comportement reste
+# strictement celui d'avant, un seul compte admin.
+#
+#   $env:RESTAURATEUR_PASSWORD = '...'   # PowerShell, avant .\mvnw.cmd spring-boot:run
+#
+# restaurant-id : UUID fixe du restaurant de test, cree par DemoDataSeeder (profil demo).
+# C'est ce qui lie le compte a SON restaurant, sans table de liaison ni migration ; le
+# filtre RestaurateurScopeFilter refuse tout autre identifiant.
+# La valeur locale du mot de passe est dans .env (ignore par Git) - voir .env.example.
+restaurateur:
+  username: ${RESTAURATEUR_USERNAME:resto@karta.local}
+  password: ${RESTAURATEUR_PASSWORD:}
+  restaurant-id: ${RESTAURATEUR_RESTAURANT_ID:11111111-1111-4111-8111-111111111111}
+
 qr:
   base-url: ${QR_BASE_URL:http://localhost:8080}
 

@@ -1,11 +1,13 @@
 package com.qrmenu.menu;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -48,6 +50,11 @@ public class MenuItem {
     @Column(nullable = false)
     private boolean available;
 
+    /** Traductions par code langue (PREMIUM). Vide = français seulement. */
+    @Convert(converter = TranslationsConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private Map<String, Translation> translations;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -79,7 +86,8 @@ public class MenuItem {
             String currency,
             UUID imageAssetId,
             int sortOrder,
-            boolean available
+            boolean available,
+            Map<String, Translation> translations
     ) {
         this.categoryId = categoryId;
         this.name = name;
@@ -89,6 +97,7 @@ public class MenuItem {
         this.imageAssetId = imageAssetId;
         this.sortOrder = sortOrder;
         this.available = available;
+        this.translations = translations;
         this.updatedAt = OffsetDateTime.now();
     }
 
@@ -126,6 +135,10 @@ public class MenuItem {
 
     public boolean isAvailable() {
         return available;
+    }
+
+    public Map<String, Translation> getTranslations() {
+        return translations == null ? Map.of() : translations;
     }
 
     public OffsetDateTime getCreatedAt() {

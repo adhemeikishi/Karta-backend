@@ -1,5 +1,6 @@
 package com.qrmenu.menu;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.qrmenu.restaurant.RestaurantOffer;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -10,6 +11,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -57,6 +59,8 @@ public class MenuDtos {
     public record MenuStructure(
             String restaurantName,
             String currency,
+            /* Langues activées en plus du français (codes ISO), PREMIUM. Vide sinon. */
+            List<String> languages,
             List<CategoryResponse> categories
     ) {
     }
@@ -67,6 +71,8 @@ public class MenuDtos {
             String description,
             int sortOrder,
             boolean visible,
+            /* Par code langue ({"en": {"name": .., "description": ..}}). Vide = français seul. */
+            Map<String, Translation> translations,
             List<ItemResponse> items
     ) {
     }
@@ -82,7 +88,8 @@ public class MenuDtos {
             /* URL publique du média, null si aucune image. */
             String imageUrl,
             int sortOrder,
-            boolean available
+            boolean available,
+            Map<String, Translation> translations
     ) {
     }
 
@@ -98,7 +105,9 @@ public class MenuDtos {
     public record SaveMenuRequest(
             @NotNull(message = "categories est obligatoire")
             @Valid
-            List<SaveCategoryRequest> categories
+            List<SaveCategoryRequest> categories,
+            /* Langues activées (codes ISO). Absent = inchangé, pour ne pas casser les clients existants. */
+            List<String> languages
     ) {
     }
 
@@ -113,8 +122,20 @@ public class MenuDtos {
             Integer sortOrder,
             Boolean visible,
             @Valid
-            List<SaveItemRequest> items
+            List<SaveItemRequest> items,
+            /* Par code langue. Absent = aucune traduction (PREMIUM uniquement, ignoré sinon). */
+            Map<String, Translation> translations
     ) {
+        /** Deux constructeurs : Jackson doit savoir lequel désérialise le JSON. */
+        @JsonCreator
+        public SaveCategoryRequest {
+        }
+
+        /** Forme historique, sans traductions (KartaAI, clients existants). */
+        public SaveCategoryRequest(UUID id, String name, String description, Integer sortOrder,
+                                   Boolean visible, List<SaveItemRequest> items) {
+            this(id, name, description, sortOrder, visible, items, null);
+        }
     }
 
     public record SaveItemRequest(
@@ -132,7 +153,17 @@ public class MenuDtos {
             UUID imageAssetId,
             @Min(value = 0, message = "sortOrder doit être >= 0")
             Integer sortOrder,
-            Boolean available
+            Boolean available,
+            Map<String, Translation> translations
     ) {
+        @JsonCreator
+        public SaveItemRequest {
+        }
+
+        /** Forme historique, sans traductions (KartaAI, clients existants). */
+        public SaveItemRequest(UUID id, String name, String description, Integer price, String currency,
+                               UUID imageAssetId, Integer sortOrder, Boolean available) {
+            this(id, name, description, price, currency, imageAssetId, sortOrder, available, null);
+        }
     }
 }

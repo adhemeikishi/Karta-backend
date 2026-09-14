@@ -1,11 +1,13 @@
 package com.qrmenu.menu;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -37,6 +39,11 @@ public class MenuCategory {
     @Column(nullable = false)
     private boolean visible;
 
+    /** Traductions par code langue (PREMIUM). Vide = français seulement. */
+    @Convert(converter = TranslationsConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private Map<String, Translation> translations;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -56,11 +63,18 @@ public class MenuCategory {
         this.updatedAt = now;
     }
 
-    public void update(String name, String description, int sortOrder, boolean visible) {
+    public void update(
+            String name,
+            String description,
+            int sortOrder,
+            boolean visible,
+            Map<String, Translation> translations
+    ) {
         this.name = name;
         this.description = description;
         this.sortOrder = sortOrder;
         this.visible = visible;
+        this.translations = translations;
         this.updatedAt = OffsetDateTime.now();
     }
 
@@ -86,6 +100,10 @@ public class MenuCategory {
 
     public boolean isVisible() {
         return visible;
+    }
+
+    public Map<String, Translation> getTranslations() {
+        return translations == null ? Map.of() : translations;
     }
 
     public OffsetDateTime getCreatedAt() {

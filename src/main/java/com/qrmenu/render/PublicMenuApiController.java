@@ -5,6 +5,7 @@ import com.qrmenu.render.PublicMenuDtos.PublicMenu;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -25,8 +26,8 @@ public class PublicMenuApiController {
     }
 
     @GetMapping("/{code}")
-    public PublicMenu menu(@PathVariable String code) {
-        return publicMenuService.findPublic(code)
+    public PublicMenu menu(@PathVariable String code, @RequestParam(required = false) String lang) {
+        return publicMenuService.findPublic(code, lang)
                 .orElseThrow(() -> new NotFoundException("Menu indisponible."));
     }
 }

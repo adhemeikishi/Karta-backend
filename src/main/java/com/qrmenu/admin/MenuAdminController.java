@@ -68,7 +68,7 @@ public class MenuAdminController {
             @PathVariable UUID restaurantId,
             @Valid @RequestBody SaveMenuRequest request
     ) {
-        return menuService.saveStructure(restaurantId, request.categories());
+        return menuService.saveStructure(restaurantId, request.categories(), request.languages());
     }
 
     /** Supprime le menu et tout son contenu. Le QR retrouve sa destination d'origine. */

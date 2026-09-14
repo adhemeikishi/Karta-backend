@@ -74,6 +74,7 @@ que consommeront KartaAI, la Review, l'aperçu et le renderer.
   "structure": {
     "restaurantName": "Le Bistrot",
     "currency": "EUR",
+    "languages": ["en"],
     "categories": [
       {
         "id": "8f1c…",
@@ -81,6 +82,7 @@ que consommeront KartaAI, la Review, l'aperçu et le renderer.
         "description": "Nos burgers",
         "sortOrder": 1,
         "visible": true,
+        "translations": { "en": { "name": "Burgers", "description": "Our burgers" } },
         "items": [
           {
             "id": "b32a…",
@@ -91,7 +93,8 @@ que consommeront KartaAI, la Review, l'aperçu et le renderer.
             "imageAssetId": null,
             "imageUrl": null,
             "sortOrder": 1,
-            "available": true
+            "available": true,
+            "translations": { "en": { "name": "Cheeseburger", "description": "Beef, cheddar, lettuce" } }
           }
         ]
       }
@@ -101,6 +104,11 @@ que consommeront KartaAI, la Review, l'aperçu et le renderer.
 ```
 
 - `structure` est `null` pour un menu `PDF` ; `pdf` est `null` pour un menu `STRUCTURED`.
+- `languages` (V9) : langues activées en plus du français (`en`, `es`, `zh`) ; `translations` :
+  par code langue, `name` / `description` — champ absent = repli sur le français. Les deux
+  sont **stockés pour toute offre structurée mais rendus pour PREMIUM seulement**
+  (`PublicMenuService`), comme les photos (`imageUrl`) et l'identité du design. Dans le
+  `PUT`, `languages` absent = inchangées ; `translations` absent = aucune.
 - `version: 0` signale qu'**aucune ligne `menus` n'existe** encore pour ce client.
 - Les catégories et les produits sont toujours triés par `sortOrder`, puis par nom.
 
@@ -241,6 +249,7 @@ et les suppléments multiples — inutile d'inventer trois entités.
 | --------------------------- | ------------------------------------------------------------------------------------- |
 | **Renderer HTML**           | ✅ livré : `menu/menu.html`, un template pour les cinq presets                          |
 | **Presets / thème**         | ✅ livré (V5) : colonnes `preset` + identité PREMIUM sur `menus`, pas de `theme_json`   |
+| **Premium avancé**          | ✅ livré (V9) : `hide_branding`, `font`, `languages`, `qr_*` sur `menus` ; `translations` (JSON) sur catégories et plats |
 | **KartaAI**                 | ✅ livré (V6) : `POST/GET/DELETE .../menu/ai/*` pour le brouillon, écriture par le `PUT` |
 | **Review plat par plat**    | les `id` de catégories et de produits sont stables entre deux enregistrements           |
 | **Photos**                  | ✅ livré : `POST .../images` + `image_asset_id`                                          |

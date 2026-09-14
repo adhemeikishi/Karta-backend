@@ -125,6 +125,16 @@ public class MenuService {
      */
     @Transactional
     public MenuResponse saveStructure(UUID restaurantId, List<SaveCategoryRequest> categories) {
+        return saveStructure(restaurantId, categories, null);
+    }
+
+    /**
+     * @param languages langues activées (codes ISO) ; {@code null} = inchangées. Écrites
+     *                  ici avec le contenu parce qu'elles n'ont de sens qu'avec des
+     *                  traductions. Stockées pour toute offre, rendues pour PREMIUM seulement.
+     */
+    @Transactional
+    public MenuResponse saveStructure(UUID restaurantId, List<SaveCategoryRequest> categories, List<String> languages) {
         Restaurant restaurant = requireStructured(restaurantId);
         Menu menu = menuRepository.findByRestaurantId(restaurantId)
                 .orElseGet(() -> menuRepository.save(new Menu(restaurantId, MenuType.STRUCTURED)));
@@ -134,6 +144,9 @@ public class MenuService {
         menu.convertToStructured();
 
         structureService.replace(restaurant, menu, categories);
+        if (languages != null) {
+            menu.applyLanguages(languages.stream().map(MenuLanguage::fromCode).toList());
+        }
         menu.bumpVersion();
         menu.applyContentState(structureService.hasContent(menu.getId()));
         MenuResponse response = toResponse(restaurant, menuRepository.save(menu));
@@ -215,6 +228,12 @@ public class MenuService {
         requirePublishableContent(menu);
 
         menu.publish();
+        // Publier, c'est terminer l'onboarding : c'est le moment où le restaurant devient
+        // réellement exploitable derrière son QR. Le marqueur est posé ici plutôt que par
+        // un appel dédié du frontend — il ne peut donc être ni oublié, ni simulé depuis le
+        // client, et il ne peut pas mentir sur l'état réel. `restaurant` est managé dans
+        // cette transaction : la modification est écrite au flush.
+        restaurant.completeOnboarding();
         Menu saved = menuRepository.save(menu);
         recomputeEffectiveDestination(restaurantId, saved);
         return toResponse(restaurant, saved);

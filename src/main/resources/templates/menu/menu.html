@@ -13,6 +13,7 @@
 */-->
 <html
   lang="fr"
+  th:lang="${menu.language.code}"
   xmlns:th="http://www.thymeleaf.org"
   th:style="|--t-bg:${theme.background};--t-surface:${theme.surface};--t-border:${theme.border};--t-text:${theme.text};--t-muted:${theme.muted};--t-accent:${theme.accent};--t-accent-text:${theme.accentText};--t-font:${theme.fontStack};|"
 >
@@ -23,7 +24,13 @@
     <meta name="theme-color" th:attr="content=${theme.background}" content="#ffffff" />
     <!-- Évite une requête /favicon.ico inutile (404) sur un réseau mobile. -->
     <link rel="icon" href="data:," />
-    <title th:text="${menu.restaurantName} + ' — Menu'">Menu</title>
+    <title th:text="${menu.restaurantName} + ' — ' + ${menu.labels.eyebrow}">Menu</title>
+    <!-- Typographie PREMIUM uniquement : par défaut, aucune police distante n'est chargée. -->
+    <th:block th:if="${theme.fontUrl != null}">
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link rel="stylesheet" th:href="${theme.fontUrl}" />
+    </th:block>
     <th:block th:replace="~{menu/base :: reset}"></th:block>
     <style>
       /* ------------------------------------------------------------------ base */
@@ -63,6 +70,30 @@
         text-transform: uppercase;
         font-weight: 700;
         text-align: center;
+      }
+
+      /* ------------------------------------------------------------ langues */
+      /* Sélecteur PREMIUM : de simples liens, aucun script. Absent quand une seule langue. */
+      .langs {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.25rem;
+        padding: 0.75rem var(--t-pad-x) 0;
+      }
+      .langs a,
+      .langs span {
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--t-muted);
+        text-decoration: none;
+      }
+      .langs .is-current {
+        color: var(--t-accent-text);
+        background-color: var(--t-accent);
       }
 
       /* ------------------------------------------------------------- en-tête */
@@ -356,15 +387,26 @@
         <img th:src="${theme.heroUrl}" alt="" decoding="async" />
       </div>
 
+      <nav class="langs" th:if="${menu.languages.size() > 1}" th:attr="aria-label=${menu.labels.languages}">
+        <th:block th:each="l : ${menu.languages}">
+          <!-- En aperçu (document blob), un lien ne mènerait nulle part : simple texte. -->
+          <span th:if="${preview or l.code == menu.language.code}"
+                th:classappend="${l.code == menu.language.code} ? 'is-current'"
+                th:text="${l.label}">FR</span>
+          <a th:unless="${preview or l.code == menu.language.code}"
+             th:href="'?lang=' + ${l.code}" th:text="${l.label}" th:attr="hreflang=${l.code}">EN</a>
+        </th:block>
+      </nav>
+
       <header class="header">
         <img class="logo" th:if="${theme.logoUrl != null}" th:src="${theme.logoUrl}" alt="" decoding="async" />
         <div class="header-rule"></div>
-        <p class="eyebrow">Menu</p>
+        <p class="eyebrow" th:text="${menu.labels.eyebrow}">Menu</p>
         <h1 class="restaurant-name k-wrap" th:text="${menu.restaurantName}">Le Bistrot</h1>
       </header>
 
       <main>
-        <p class="empty" th:if="${menu.empty}">Le menu sera disponible très prochainement.</p>
+        <p class="empty" th:if="${menu.empty}" th:text="${menu.labels.empty}">Le menu sera disponible très prochainement.</p>
 
         <div class="categories" th:unless="${menu.empty}">
           <section class="category" th:each="category : ${menu.categories}">
@@ -401,7 +443,7 @@
                   >
                     Steak, cheddar, salade
                   </p>
-                  <span class="item-flag" th:unless="${item.available}">Indisponible</span>
+                  <span class="item-flag" th:unless="${item.available}" th:text="${menu.labels.unavailable}">Indisponible</span>
                 </div>
 
                 <p class="item-price k-tnum" th:text="${item.priceLabel}">12,90 €</p>
@@ -411,7 +453,8 @@
         </div>
       </main>
 
-      <footer class="footer"><b>Karta</b></footer>
+      <!-- Marque Karta : retirée par l'option PREMIUM « Sans branding Karta ». -->
+      <footer class="footer" th:if="${theme.branding}"><b>Karta</b></footer>
     </div>
   </body>
 </html>
