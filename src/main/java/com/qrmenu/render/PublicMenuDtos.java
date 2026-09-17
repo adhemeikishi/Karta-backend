@@ -1,5 +1,7 @@
 package com.qrmenu.render;
 
+import com.qrmenu.kartapay.ModifierDtos.ModifierGroupResponse;
+
 import java.util.List;
 
 /**
@@ -14,6 +16,8 @@ import java.util.List;
  * Les catégories masquées et les menus non publiés sont écartés <em>avant</em> la
  * construction de ces objets : le contenu non diffusable n'atteint jamais le HTML.
  */
+import java.util.UUID;
+
 public class PublicMenuDtos {
 
     private PublicMenuDtos() {
@@ -31,7 +35,9 @@ public class PublicMenuDtos {
             List<PublicLanguage> languages,
             /* Libellés fixes du gabarit (« Menu », « Indisponible »…) dans la langue de la vue. */
             MenuLabels labels,
-            List<PublicCategory> categories
+            List<PublicCategory> categories,
+            /* Commande sur place proposée pour ce client (voir Restaurant.kartaPayEnabled). */
+            boolean kartaPayEnabled
     ) {
         public boolean isEmpty() {
             return categories.isEmpty();
@@ -49,6 +55,8 @@ public class PublicMenuDtos {
     }
 
     public record PublicItem(
+            /* Référence Karta Pay pour créer une commande (CreateOrderRequest.lines[].itemId). */
+            UUID id,
             String name,
             String description,
             /* Centimes entiers, comme partout dans Karta. */
@@ -58,7 +66,9 @@ public class PublicMenuDtos {
             String priceLabel,
             /* URL publique de l'image, ou null. Jamais d'identifiant d'asset ici. */
             String imageUrl,
-            boolean available
+            boolean available,
+            /* Groupes d'options Karta Pay (ex : "Cuisson"). Vide hors Karta Pay. */
+            List<ModifierGroupResponse> modifierGroups
     ) {
     }
 }

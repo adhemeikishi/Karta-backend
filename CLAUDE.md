@@ -13,14 +13,25 @@ Le backend gère aujourd'hui, en production de code (vérifié par lecture direc
 - KartaAI : extraction de menu depuis PDF via Gemini ou Anthropic (package `kartaai`),
   réservée aux offres PRO/PREMIUM, avec double barrière de validation avant
   toute écriture réelle du menu
+- Démo publique KartaAI (`MenuDemoPublicController`, `POST /api/public/menu-demo/extract`) :
+  même pipeline d'extraction (`MenuExtractor` + `ExtractionValidator`), sans Basic Auth,
+  sans restaurant, sans aucune écriture en base — utilisée par `/create/design` côté
+  frontend. Protégée par un quota en mémoire par IP (`DemoRateLimiter`,
+  `KARTA_AI_DEMO_MAX_PER_HOUR`, défaut 5/h) : seule protection contre l'abus sur une
+  route publique qui appelle réellement Gemini.
 - studio de design / personnalisation Premium (branding, QR personnalisé, langues)
 - onboarding restaurateur (marqueur `onboarding_completed_at`)
+- Karta Pay (`kartaPayEnabled` par restaurant) : commande sur le menu public
+  quand activé — bouton "+", panier, personnalisation (`ModifierGroup`/
+  `ModifierOption`), checkout DINE_IN/TAKEAWAY, création de commande via
+  `OrderPublicController`, suivi de statut. Rendu dans le même `menu.html`
+  que le menu public standard, derrière `th:if="${menu.kartaPayEnabled}"` —
+  strictement additif, ne doit jamais modifier le rendu quand désactivé.
 
 **Toujours hors périmètre, sans demande explicite** :
 
-- commandes, panier
-- paiement / Stripe / facturation / abonnement réel (le champ `offer` existe
-  mais n'est qu'un attribut modifiable par un admin, sans facturation)
+- paiement réel / Stripe / facturation / abonnement (Karta Pay crée des
+  commandes mais n'encaisse rien : `NoPaymentProvider`)
 - KDS, imprimantes cuisine
 - fidélité
 - système d'avis clients

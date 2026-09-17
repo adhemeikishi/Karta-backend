@@ -26,6 +26,7 @@ package com.qrmenu.render;
  * @param logoUrl     logo PREMIUM, ou {@code null}
  * @param heroUrl     image d'en-tête PREMIUM, ou {@code null}
  * @param branding    vrai pour afficher la marque Karta en pied de page
+ * @param centered    vrai pour un gabarit centré (registre haut de gamme, ex. LUXE)
  */
 public record MenuTheme(
         String preset,
@@ -43,6 +44,7 @@ public record MenuTheme(
         boolean dark,
         String logoUrl,
         String heroUrl,
-        boolean branding
+        boolean branding,
+        boolean centered
 ) {
 }

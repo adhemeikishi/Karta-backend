@@ -7,6 +7,7 @@ import com.qrmenu.qrscan.QrScanRepository;
 import com.qrmenu.qrscan.QrScanService;
 import com.qrmenu.qrscan.QrScanService.RestaurantScanStats;
 import com.qrmenu.restaurant.Restaurant;
+import com.qrmenu.restaurant.RestaurantDtos.ChangeKartaPayRequest;
 import com.qrmenu.restaurant.RestaurantDtos.ChangeOfferRequest;
 import com.qrmenu.restaurant.RestaurantDtos.CreateRestaurantRequest;
 import com.qrmenu.restaurant.RestaurantDtos.RestaurantResponse;
@@ -82,6 +83,12 @@ public class RestaurantAdminController {
     @PutMapping("/{id}/offer")
     public RestaurantResponse changeOffer(@PathVariable UUID id, @Valid @RequestBody ChangeOfferRequest request) {
         return RestaurantResponse.from(restaurantService.changeOffer(id, request.offer()));
+    }
+
+    /** Interrupteur commercial Karta Pay — action de Karta, pas du restaurateur (voir RestaurateurScopeFilter). */
+    @PutMapping("/{id}/karta-pay")
+    public RestaurantResponse changeKartaPay(@PathVariable UUID id, @Valid @RequestBody ChangeKartaPayRequest request) {
+        return RestaurantResponse.from(restaurantService.changeKartaPayEnabled(id, request.enabled()));
     }
 
     /**

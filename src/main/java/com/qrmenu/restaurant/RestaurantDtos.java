@@ -35,6 +35,12 @@ public class RestaurantDtos {
     ) {
     }
 
+    public record ChangeKartaPayRequest(
+            @NotNull(message = "enabled is required")
+            Boolean enabled
+    ) {
+    }
+
     public record RestaurantResponse(
             UUID id,
             String name,
@@ -45,6 +51,13 @@ public class RestaurantDtos {
              * son parcours de configuration : le frontend n'a rien à mémoriser.
              */
             OffsetDateTime onboardingCompletedAt,
+            boolean kartaPayEnabled,
+            /**
+             * Abonnement payé — indépendant de {@code offer}, voir {@link Restaurant#isSubscriptionActive()}.
+             * Seul champ qui doit décider, côté frontend, d'afficher le bandeau "Aucun
+             * abonnement actif" : jamais un état déduit ou mémorisé localement.
+             */
+            boolean subscriptionActive,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
@@ -54,6 +67,8 @@ public class RestaurantDtos {
                     restaurant.getName(),
                     restaurant.getOffer(),
                     restaurant.getOnboardingCompletedAt(),
+                    restaurant.isKartaPayEnabled(),
+                    restaurant.isSubscriptionActive(),
                     restaurant.getCreatedAt(),
                     restaurant.getUpdatedAt()
             );

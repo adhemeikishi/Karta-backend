@@ -113,6 +113,29 @@ public class QrScanService {
                 .sum();
     }
 
+    /**
+     * Répartition des scans d'un client par heure de la journée (0-23h), sur la même
+     * fenêtre de 30 jours que {@link #restaurantStats(UUID)} — pour identifier les heures
+     * d'affluence, pas pour recompter un historique différent.
+     */
+    @Transactional(readOnly = true)
+    public List<HourlyScans> hourlyDistribution(UUID restaurantId) {
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate windowStart = LocalDate.now(zone).minusDays(DAILY_WINDOW_DAYS - 1L);
+        OffsetDateTime since = windowStart.atStartOfDay(zone).toOffsetDateTime();
+
+        long[] byHour = new long[24];
+        for (OffsetDateTime scannedAt : qrScanRepository.findScanTimesByRestaurantIdSince(restaurantId, since)) {
+            byHour[scannedAt.atZoneSameInstant(zone).getHour()]++;
+        }
+
+        List<HourlyScans> distribution = new ArrayList<>(24);
+        for (int hour = 0; hour < 24; hour++) {
+            distribution.add(new HourlyScans(hour, byHour[hour]));
+        }
+        return distribution;
+    }
+
     public record QrScanStats(long today, long thisWeek, long thisMonth, long total) {
     }
 
@@ -127,6 +150,10 @@ public class QrScanService {
             long total,
             List<DailyScans> daily
     ) {
+    }
+
+    /** Nombre de scans pour une heure de la journée (0-23) sur la fenêtre considérée. */
+    public record HourlyScans(int hour, long scans) {
     }
 
     private record TimeWindows(OffsetDateTime startOfToday, OffsetDateTime startOfWeek, OffsetDateTime startOfMonth) {

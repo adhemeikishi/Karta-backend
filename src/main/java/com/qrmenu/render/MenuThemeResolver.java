@@ -76,7 +76,8 @@ public class MenuThemeResolver {
                 HexColor.luminance(background) <= 0.5,
                 effective.logoAssetId() == null ? null : urlBuilder.forAsset(effective.logoAssetId()),
                 effective.heroAssetId() == null ? null : urlBuilder.forAsset(effective.heroAssetId()),
-                !effective.isBrandingHidden());
+                !effective.isBrandingHidden(),
+                preset.density() == MenuPreset.Density.ELEGANT);
     }
 
     /**

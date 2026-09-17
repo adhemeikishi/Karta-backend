@@ -28,7 +28,7 @@
     <!-- Typographie PREMIUM uniquement : par défaut, aucune police distante n'est chargée. -->
     <th:block th:if="${theme.fontUrl != null}">
       <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
       <link rel="stylesheet" th:href="${theme.fontUrl}" />
     </th:block>
     <th:block th:replace="~{menu/base :: reset}"></th:block>
@@ -216,6 +216,13 @@
         color: var(--t-accent);
       }
 
+      .item-side {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
       .item-flag {
         display: inline-block;
         margin-top: 0.5rem;
@@ -297,95 +304,82 @@
 
       /* Minimal : beaucoup d'air, la typographie porte tout, filets quasi absents. */
       .density-airy {
-        --t-header-top: 4.5rem;
-        --t-header-bottom: 3rem;
-        --t-cat-gap: 4rem;
+        --t-header-top: 3.5rem;
+        --t-header-bottom: 2.75rem;
+        --t-cat-gap: 3.5rem;
         --t-item-pad: 1.5rem;
         --t-title-size: 2rem;
-        --t-cat-spacing: 0.2em;
+        --t-cat-size: 0.6875rem;
+        --t-cat-spacing: 0.16em;
       }
-      .density-airy .header,
-      .density-airy .category-name {
-        border-bottom-color: var(--t-border);
+      .density-airy .category-name,
+      .density-airy .item {
+        border-bottom: none;
       }
-      .density-airy .header-rule,
-      .density-airy .eyebrow {
-        display: none;
+      .density-airy .category {
+        padding-top: var(--t-cat-gap);
+        padding-bottom: var(--t-cat-gap);
+        border-bottom: 1px solid var(--t-border);
       }
-      .density-airy .item-name {
-        font-weight: 500;
-      }
-      .density-airy .item-price {
-        color: var(--t-text);
-        font-weight: 500;
+      .density-airy .item-thumb {
+        width: 4rem;
+        height: 4rem;
       }
 
-      /* Luxe : centré, empattements, filets fins — registre haut de gamme. */
-      .density-elegant {
-        --t-header-top: 3.5rem;
+      /* Carnotzet : modérément dense, feuille de papier. */
+      .density-paper {
+        --t-pad-x: 1.5rem;
+        --t-header-bottom: 2rem;
+        --t-cat-gap: 2.25rem;
+      }
+
+      /* Gourmet : plus aéré, élégant, grand titre. */
+      .density-gourmet {
+        --t-header-top: 3rem;
         --t-header-bottom: 2.5rem;
-        --t-cat-gap: 3.25rem;
-        --t-item-pad: 1.25rem;
-        --t-title-size: 2rem;
-        --t-cat-spacing: 0.24em;
+        --t-cat-gap: 3rem;
+        --t-item-pad: 1.5rem;
+        --t-title-size: 2.25rem;
+        --t-cat-size: 0.6875rem;
+      }
+
+      /* Luxe : vraiment très aéré. */
+      .density-luxury {
+        --t-pad-x: 1.75rem;
+        --t-header-top: 3.5rem;
+        --t-header-bottom: 3rem;
+        --t-cat-gap: 4rem;
+        --t-item-pad: 2rem;
+        --t-title-size: 2.5rem;
+        --t-cat-size: 0.6875rem;
+      }
+      .density-luxury .item-thumb {
+        width: 4.5rem;
+        height: 4.5rem;
+      }
+
+      /* ==================================================================== */
+      /* Alignement (gauche / centré)                                         */
+      /* ==================================================================== */
+
+      .t-align-center {
         --t-align: center;
       }
-      .density-elegant .header-rule {
+      .t-align-center .header-rule {
         margin-left: auto;
         margin-right: auto;
-      }
-      .density-elegant .restaurant-name {
-        font-weight: 500;
-        letter-spacing: 0.01em;
-      }
-      .density-elegant .logo {
-        margin-left: auto;
-        margin-right: auto;
-      }
-      .density-elegant .category-name {
-        text-align: center;
-        border-bottom: 1px solid var(--t-accent);
-        color: var(--t-accent);
-        font-weight: 600;
-      }
-      .density-elegant .category-description {
-        text-align: center;
-      }
-      .density-elegant .item-name {
-        font-weight: 500;
-      }
-
-      /* --------------------------------------------------- tablette / desktop */
-      @media (min-width: 768px) {
-        body {
-          --t-pad-x: 3rem;
-        }
-        .sheet {
-          max-width: 40rem;
-          border-left: 1px solid var(--t-border);
-          border-right: 1px solid var(--t-border);
-        }
-        .density-airy {
-          --t-title-size: 2.5rem;
-        }
-        .density-elegant {
-          --t-title-size: 2.5rem;
-        }
       }
     </style>
+
   </head>
 
-  <body th:class="'density-' + ${theme.density}">
-    <div class="sheet">
-      <div class="preview-bar" th:if="${preview}">
+  <body>
+    <div class="sheet" th:classappend="'density-' + ${theme.density} + ' ' + (${theme.centered} ? 't-align-center' : '')">
+      <!-- Bandeau d'aperçu : uniquement en studio (preview=true). -->
+      <p class="preview-bar" th:if="${preview}">
         <span th:if="${previewPublished}">Aperçu — cette carte est en ligne</span>
-        <span th:unless="${previewPublished}">Aperçu — ce menu n'est pas publié</span>
-      </div>
-
-      <!-- Image d'en-tête PREMIUM. Absente, aucun bloc n'est rendu : pas d'espace vide. -->
-      <div class="hero" th:if="${theme.heroUrl != null}">
-        <img th:src="${theme.heroUrl}" alt="" decoding="async" />
-      </div>
+        <span th:unless="${previewPublished}">Aperçu — cette carte n'est pas publiée</span>
+      </p>
 
       <nav class="langs" th:if="${menu.languages.size() > 1}" th:attr="aria-label=${menu.labels.languages}">
         <th:block th:each="l : ${menu.languages}">
@@ -446,12 +440,1249 @@
                   <span class="item-flag" th:unless="${item.available}" th:text="${menu.labels.unavailable}">Indisponible</span>
                 </div>
 
-                <p class="item-price k-tnum" th:text="${item.priceLabel}">12,90 €</p>
+                <div class="item-side">
+                  <p class="item-price k-tnum" th:text="${item.priceLabel}">12,90 €</p>
+
+                  <!-- Karta Pay : bouton + pour items disponibles (modal si modifiers, ajout direct sinon) -->
+                  <th:block th:if="${menu.kartaPayEnabled and item.available}">
+                    <button
+                      class="item-add-btn"
+                      th:data-item-id="${item.id}"
+                      th:data-item-name="${item.name}"
+                      th:data-item-price="${item.price}"
+                      th:data-has-modifiers="${!item.modifierGroups.isEmpty()}"
+                    >
+                      +
+                    </button>
+                  </th:block>
+                </div>
               </li>
             </ul>
           </section>
         </div>
       </main>
+
+      <!-- Karta Pay UI : visible uniquement si aktivé -->
+      <th:block th:if="${menu.kartaPayEnabled}">
+        <!-- Icône panier flottante -->
+        <div class="kp-cart-icon" id="kp-cart-icon" style="display: none;">
+          <svg
+            class="kp-cart-icon-svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 6h2l2.2 12.4a1.2 1.2 0 0 0 1.2 1h9.8a1.2 1.2 0 0 0 1.2-1L20 8H6" />
+            <circle cx="9.5" cy="21.25" r="1.1" />
+            <circle cx="16.5" cy="21.25" r="1.1" />
+          </svg>
+          <span class="kp-cart-count">0</span>
+        </div>
+
+        <!-- Modal de personnalisation -->
+        <div class="kp-modal kp-personalization-modal" id="kp-modal" style="display: none;">
+          <div class="kp-modal-overlay" id="kp-modal-overlay"></div>
+          <div class="kp-modal-content">
+            <button class="kp-modal-close" id="kp-modal-close">×</button>
+            <h3 id="kp-item-name-modal"></h3>
+            <p id="kp-item-description-modal"></p>
+            <div id="kp-modifiers-container"></div>
+            <div class="kp-quantity-row">
+              <label>Quantité :</label>
+              <button id="kp-qty-minus">−</button>
+              <input type="number" id="kp-qty" min="1" value="1" />
+              <button id="kp-qty-plus">+</button>
+            </div>
+            <p class="kp-price-preview">
+              Total : <strong id="kp-modal-total">0 €</strong>
+            </p>
+            <button class="kp-add-to-cart-btn" id="kp-add-to-cart-btn">Ajouter au panier</button>
+          </div>
+        </div>
+
+        <!-- Panier -->
+        <div class="kp-cart-panel" id="kp-cart-panel" style="display: none;">
+          <div class="kp-cart-header">
+            <h2>Panier</h2>
+            <button id="kp-close-cart">Retour</button>
+          </div>
+          <div id="kp-cart-items"></div>
+          <div class="kp-cart-total">
+            <strong>Total : <span id="kp-cart-total-price">0 €</span></strong>
+          </div>
+          <button class="kp-checkout-btn" id="kp-checkout-btn">Passer la commande</button>
+        </div>
+
+        <!-- Checkout -->
+        <div class="kp-checkout-panel" id="kp-checkout-panel" style="display: none;">
+          <div class="kp-checkout-header">
+            <button id="kp-back-to-cart">← Panier</button>
+            <h2>Commande</h2>
+          </div>
+
+          <!-- Step 1: Type de commande -->
+          <div id="kp-step-type" class="kp-checkout-step">
+            <h3>Type de commande</h3>
+            <label class="kp-radio-label">
+              <input type="radio" name="fulfillmentType" value="DINE_IN" checked="checked" />
+              <span class="kp-radio-dot"></span>
+              Sur place
+            </label>
+            <label class="kp-radio-label">
+              <input type="radio" name="fulfillmentType" value="TAKEAWAY" />
+              <span class="kp-radio-dot"></span>
+              À emporter
+            </label>
+            <div id="kp-table-input" class="kp-field" style="display: block;">
+              <label>
+                Numéro de table (optionnel)
+                <input type="text" id="kp-table-number" placeholder="Table 5" />
+              </label>
+            </div>
+            <div id="kp-name-input" class="kp-field" style="display: none;">
+              <label>
+                Nom du client
+                <input type="text" id="kp-customer-name" placeholder="Jean Dupont" required="required" />
+              </label>
+            </div>
+            <button id="kp-continue-type" class="kp-order-btn">Continuer</button>
+          </div>
+
+          <!-- Step 2: Récapitulatif -->
+          <div id="kp-step-summary" class="kp-checkout-step" style="display: none;">
+            <h3>Récapitulatif</h3>
+            <div id="kp-summary-lines"></div>
+            <div id="kp-summary-fulfillment"></div>
+            <div class="kp-summary-total">
+              <span>Total</span>
+              <strong id="kp-summary-total">0 €</strong>
+            </div>
+            <button id="kp-confirm-order-btn" class="kp-order-btn">Passer la commande</button>
+          </div>
+
+          <!-- Step 3: Confirmation -->
+          <div id="kp-step-confirmation" class="kp-checkout-step" style="display: none;">
+            <div class="kp-confirmation-success">
+              <p class="kp-confirmation-check">✓</p>
+              <p>Commande créée</p>
+              <p>Numéro : <strong id="kp-order-number"></strong></p>
+              <p>Total : <strong id="kp-confirmation-total"></strong></p>
+              <p id="kp-confirmation-payment-status">Paiement : <strong>En attente</strong></p>
+            </div>
+            <button id="kp-track-order-btn" class="kp-order-btn">Suivre ma commande</button>
+            <button id="kp-new-order-btn" class="kp-order-btn-secondary">Nouvelle commande</button>
+          </div>
+        </div>
+
+        <!-- Tracking ordre -->
+        <div class="kp-tracking-panel" id="kp-tracking-panel" style="display: none;">
+          <div class="kp-tracking-header">
+            <button id="kp-close-tracking">Retour</button>
+          </div>
+          <div id="kp-tracking-info"></div>
+        </div>
+      </th:block>
+
+      <!-- Styles Karta Pay -->
+      <th:block th:if="${menu.kartaPayEnabled}">
+        <style>
+          /* Karta Pay hérite la police du thème (les form controls n'héritent pas
+             la police de leurs ancêtres par défaut) */
+          .kp-cart-icon,
+          .item-add-btn,
+          .kp-modal button,
+          .kp-modal input,
+          .kp-cart-panel button,
+          .kp-cart-panel input,
+          .kp-checkout-panel button,
+          .kp-checkout-panel input,
+          .kp-tracking-panel button {
+            font-family: var(--t-font);
+          }
+
+          /* Bouton + sur items */
+          .item-add-btn {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.875rem;
+            height: 1.875rem;
+            padding: 0;
+            border-radius: 50%;
+            border: 1px solid var(--t-border);
+            background-color: transparent;
+            color: var(--t-accent);
+            font-size: 1.0625rem;
+            line-height: 1;
+            font-weight: 400;
+            cursor: pointer;
+            transition: border-color 0.2s ease, color 0.2s ease,
+              background-color 0.2s ease;
+          }
+          .item-add-btn:hover {
+            border-color: var(--t-accent);
+            background-color: var(--t-accent);
+            color: var(--t-accent-text);
+          }
+
+          /* Icône panier */
+          .kp-cart-icon {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            background-color: var(--t-bg);
+            border: 1px solid var(--t-border);
+            color: var(--t-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            transition: border-color 0.2s ease;
+          }
+          .kp-cart-icon:hover {
+            border-color: var(--t-accent);
+          }
+          .kp-cart-icon-svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: var(--t-accent);
+          }
+          .kp-cart-count {
+            position: absolute;
+            top: -0.25rem;
+            right: -0.25rem;
+            background-color: var(--t-accent);
+            color: var(--t-accent-text);
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            border: none;
+          }
+
+          /* Modales générales */
+          .kp-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 200;
+          }
+          .kp-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.3);
+          }
+          .kp-modal-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--t-bg);
+            border-top: 1px solid var(--t-border);
+            padding: var(--t-pad-x);
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 12px 12px 0 0;
+          }
+          .kp-modal-close {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            font-size: 1.75rem;
+            cursor: pointer;
+            color: var(--t-text);
+          }
+          .kp-modal h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+          }
+          .kp-modal p {
+            margin: 0 0 1rem 0;
+            color: var(--t-muted);
+            font-size: 0.875rem;
+          }
+
+          /* Groupes de modifiers */
+          .kp-modifier-group {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--t-border);
+          }
+          .kp-modifier-group:last-child {
+            border-bottom: none;
+          }
+          .kp-modifier-group h4 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.9375rem;
+            font-weight: 600;
+          }
+          .kp-modifier-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9375rem;
+          }
+          .kp-modifier-option-price {
+            margin-left: auto;
+            color: var(--t-accent);
+            font-weight: 600;
+          }
+
+          /* Quantité */
+          .kp-quantity-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+          }
+          .kp-quantity-row label {
+            min-width: 60px;
+          }
+          .kp-quantity-row input {
+            width: 3rem;
+            text-align: center;
+            padding: 0.5rem;
+            border: 1px solid var(--t-border);
+            border-radius: 4px;
+            font-family: var(--t-font);
+          }
+
+          /* Boutons quantité (modal + panier) : style unifié, rond, doré au hover */
+          .kp-quantity-row button,
+          .kp-cart-item-qty button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            padding: 0;
+            border: 1.5px solid var(--t-border);
+            background-color: var(--t-bg);
+            color: var(--t-text);
+            border-radius: 50%;
+            font-size: 0.9375rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease,
+              border-color 0.2s ease;
+          }
+          .kp-quantity-row button:hover,
+          .kp-cart-item-qty button:hover {
+            background-color: var(--t-accent);
+            border-color: var(--t-accent);
+            color: var(--t-accent-text);
+          }
+
+          /* Prix preview */
+          .kp-price-preview {
+            text-align: right;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--t-accent);
+          }
+
+          /* Boutons */
+          .kp-add-to-cart-btn,
+          .kp-checkout-btn,
+          .kp-order-btn {
+            width: 100%;
+            padding: 0.8125rem;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--t-accent);
+            color: var(--t-accent-text);
+            font-weight: 600;
+            font-family: var(--t-font);
+            font-size: 0.9375rem;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+          }
+          .kp-add-to-cart-btn:hover,
+          .kp-checkout-btn:hover,
+          .kp-order-btn:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+          }
+          .kp-add-to-cart-btn:active,
+          .kp-checkout-btn:active,
+          .kp-order-btn:active {
+            transform: translateY(0);
+            box-shadow: none;
+          }
+
+          /* Panels (panier, checkout) */
+          .kp-cart-panel,
+          .kp-checkout-panel,
+          .kp-tracking-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--t-bg);
+            z-index: 150;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+          }
+          .kp-cart-header,
+          .kp-checkout-header,
+          .kp-tracking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--t-pad-x);
+            border-bottom: 1px solid var(--t-border);
+          }
+          .kp-cart-header button,
+          .kp-checkout-header button,
+          .kp-tracking-header button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--t-accent);
+          }
+
+          /* Contenu du panier */
+          #kp-cart-items {
+            flex: 1;
+            padding: var(--t-pad-x);
+            overflow-y: auto;
+          }
+          .kp-cart-item {
+            padding-bottom: var(--t-cat-gap);
+            border-bottom: 1px solid var(--t-border);
+            margin-bottom: var(--t-cat-gap);
+          }
+          .kp-cart-item:last-child {
+            border-bottom: none;
+          }
+          .kp-cart-item-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+          }
+          .kp-cart-item-name {
+            font-weight: 600;
+            font-size: 1rem;
+          }
+          .kp-cart-item-modifiers {
+            font-size: 0.8125rem;
+            color: var(--t-muted);
+            margin-bottom: 0.75rem;
+          }
+          .kp-cart-item-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+          .kp-cart-item-qty {
+            display: flex;
+            gap: 0.625rem;
+            align-items: center;
+          }
+          .kp-cart-item-price {
+            font-weight: 600;
+            color: var(--t-accent);
+          }
+          .kp-cart-item-remove {
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+            color: var(--t-muted);
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+          }
+          .kp-cart-item-remove:hover {
+            color: var(--t-accent);
+          }
+
+          /* Total et checkout */
+          .kp-cart-total {
+            padding: var(--t-pad-x);
+            border-top: 1px solid var(--t-border);
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+          }
+          .kp-summary-total {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: var(--t-pad-x);
+            margin-top: 0.5rem;
+            border-top: 1px solid var(--t-border);
+            font-size: 0.9375rem;
+            color: var(--t-muted);
+            margin-bottom: 1.25rem;
+          }
+          .kp-summary-total strong {
+            font-size: 1.25rem;
+            color: var(--t-accent);
+          }
+
+          /* Résumé */
+          .kp-summary-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--t-border);
+          }
+          .kp-summary-item:last-child {
+            border-bottom: none;
+          }
+          .kp-summary-item-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+          }
+          .kp-summary-item-name {
+            font-weight: 600;
+            font-size: 0.9375rem;
+          }
+          .kp-summary-item-price {
+            font-weight: 600;
+            color: var(--t-accent);
+            white-space: nowrap;
+          }
+          .kp-summary-item-detail {
+            margin-top: 0.25rem;
+            font-size: 0.8125rem;
+            color: var(--t-muted);
+          }
+          .kp-summary-fulfillment {
+            margin-top: 1.25rem;
+            padding: 0.75rem var(--t-pad-x);
+            background-color: var(--t-surface);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: var(--t-muted);
+          }
+
+          /* Checkout steps */
+          .kp-checkout-step {
+            padding: var(--t-pad-x);
+          }
+          .kp-checkout-step h3 {
+            margin-top: 0;
+            margin-bottom: 1.25rem;
+            font-size: 1.25rem;
+          }
+
+          /* Radios personnalisés */
+          .kp-radio-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.875rem;
+            cursor: pointer;
+            font-size: 0.9375rem;
+          }
+          .kp-radio-label input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+          }
+          .kp-radio-dot {
+            flex-shrink: 0;
+            width: 1.125rem;
+            height: 1.125rem;
+            border-radius: 50%;
+            border: 1.5px solid var(--t-border);
+            transition: border-color 0.2s ease;
+            position: relative;
+          }
+          .kp-radio-dot::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background-color: var(--t-accent);
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.15s ease;
+          }
+          .kp-radio-label input[type="radio"]:checked + .kp-radio-dot {
+            border-color: var(--t-accent);
+          }
+          .kp-radio-label input[type="radio"]:checked + .kp-radio-dot::after {
+            transform: translate(-50%, -50%) scale(1);
+          }
+
+          /* Champs texte */
+          .kp-field {
+            margin-top: 1rem;
+          }
+          .kp-field label {
+            display: block;
+            margin-bottom: 0.75rem;
+            cursor: default;
+            font-size: 0.9375rem;
+          }
+          .kp-checkout-step input[type="text"] {
+            display: block;
+            width: 100%;
+            margin-top: 0.5rem;
+            padding: 0.625rem 0.75rem;
+            background-color: var(--t-surface);
+            color: var(--t-text);
+            border: 1px solid var(--t-border);
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: var(--t-font);
+            transition: border-color 0.2s ease;
+          }
+          .kp-checkout-step input[type="text"]::placeholder {
+            color: var(--t-muted);
+          }
+          .kp-checkout-step input[type="text"]:focus {
+            outline: none;
+            border-color: var(--t-accent);
+          }
+          #kp-continue-type,
+          #kp-confirm-order-btn {
+            margin-top: 1.75rem;
+          }
+
+          /* Confirmation */
+          .kp-confirmation-success {
+            text-align: center;
+            padding: var(--t-cat-gap) var(--t-pad-x);
+          }
+          .kp-confirmation-check {
+            width: 3rem;
+            height: 3rem;
+            margin: 0 auto 1rem;
+            border-radius: 50%;
+            border: 1.5px solid var(--t-accent);
+            color: var(--t-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            animation: kp-check-in 0.4s ease-out;
+          }
+          @keyframes kp-check-in {
+            from {
+              opacity: 0;
+              transform: scale(0.5);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+          .kp-confirmation-success p {
+            margin: 0.75rem 0;
+            font-size: 1rem;
+          }
+          .kp-confirmation-success p.kp-confirmation-check {
+            margin: 0 auto 1rem;
+          }
+          .kp-confirmation-success strong {
+            color: var(--t-accent);
+            font-size: 1.25rem;
+          }
+          #kp-track-order-btn {
+            margin-top: 0.5rem;
+          }
+          #kp-new-order-btn {
+            margin-top: 0.75rem;
+          }
+          .kp-order-btn-secondary {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--t-border);
+            border-radius: 6px;
+            background-color: transparent;
+            color: var(--t-text);
+            font-weight: 600;
+            font-family: var(--t-font);
+            cursor: pointer;
+            transition: border-color 0.2s ease, color 0.2s ease;
+          }
+          .kp-order-btn-secondary:hover {
+            border-color: var(--t-accent);
+            color: var(--t-accent);
+          }
+
+          /* Tracking */
+          #kp-tracking-info {
+            padding: var(--t-cat-gap) var(--t-pad-x);
+            text-align: center;
+          }
+          .kp-tracking-order-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+          }
+          .kp-tracking-status-badge {
+            display: inline-block;
+            padding: 0.375rem 1rem;
+            border-radius: 999px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            border: 1px solid var(--t-border);
+            color: var(--t-muted);
+            margin-bottom: 2rem;
+          }
+          .kp-tracking-status-badge[data-status="PENDING"] {
+            border-color: var(--t-accent);
+            color: var(--t-accent);
+          }
+          .kp-tracking-status-badge[data-status="CONFIRMED"],
+          .kp-tracking-status-badge[data-status="PREPARING"] {
+            border-color: var(--t-accent);
+            color: var(--t-accent);
+          }
+          .kp-tracking-status-badge[data-status="READY"],
+          .kp-tracking-status-badge[data-status="COMPLETED"] {
+            border-color: #6b9b6f;
+            color: #6b9b6f;
+          }
+          .kp-tracking-status-badge[data-status="CANCELLED"] {
+            border-color: #b06a5c;
+            color: #b06a5c;
+          }
+          .kp-tracking-detail-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-top: 1px solid var(--t-border);
+            font-size: 0.9375rem;
+            color: var(--t-muted);
+            text-align: left;
+          }
+          .kp-tracking-detail-row strong {
+            color: var(--t-text);
+            font-weight: 600;
+          }
+        </style>
+      </th:block>
+
+      <!-- JS vanilla Karta Pay -->
+      <th:block th:if="${menu.kartaPayEnabled}">
+        <script th:inline="javascript">
+          /*<![CDATA[*/
+          // Configuration globale
+          const KARTA_PAY_CONFIG = {
+            qrCode: [[${qrCode}]],
+            apiBaseUrl: '/api/public/restaurants',
+            cartKey: 'karta-cart:' + [[${qrCode}]]
+          };
+
+          // Initialisation du panier depuis localStorage
+          function loadCart() {
+            const json = localStorage.getItem(KARTA_PAY_CONFIG.cartKey);
+            return json ? JSON.parse(json) : [];
+          }
+
+          function saveCart(cart) {
+            localStorage.setItem(KARTA_PAY_CONFIG.cartKey, JSON.stringify(cart));
+          }
+
+          function updateCartIcon() {
+            const cart = loadCart();
+            const icon = document.getElementById('kp-cart-icon');
+            const count = document.querySelector('.kp-cart-count');
+            const totalItems = cart.reduce((sum, line) => sum + line.quantity, 0);
+            if (totalItems > 0) {
+              icon.style.display = 'flex';
+              count.textContent = totalItems;
+            } else {
+              icon.style.display = 'none';
+            }
+          }
+
+          // Gestion des boutons +
+          document.querySelectorAll('.item-add-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const itemId = this.getAttribute('data-item-id') || this.dataset.itemId;
+              const itemName = this.getAttribute('data-item-name') || this.dataset.itemName;
+              const itemPrice = parseInt(this.getAttribute('data-item-price') || this.dataset.itemPrice);
+              const hasModifiers = (this.getAttribute('data-has-modifiers') || this.dataset.hasModifiers) === 'true';
+
+              if (hasModifiers) {
+                openPersonalizationModal(itemId, itemName, itemPrice);
+              } else {
+                addToCartDirect(itemId, itemName, itemPrice, 1, []);
+              }
+            });
+          });
+
+          function openPersonalizationModal(itemId, itemName, itemPrice) {
+            const modal = document.getElementById('kp-modal');
+            const modifiersContainer = document.getElementById('kp-modifiers-container');
+            document.getElementById('kp-item-name-modal').textContent = itemName;
+            document.getElementById('kp-qty').value = 1;
+            
+            // Récupérer l'élément bouton pour accéder aux données
+            const btn = document.querySelector(`[data-item-id="` + itemId + `"]`);
+            let modifierGroups = [];
+            if (btn && btn.hasAttribute('data-modifiers-json')) {
+              try {
+                modifierGroups = JSON.parse(btn.getAttribute('data-modifiers-json'));
+              } catch (e) {
+                console.error('Failed to parse modifiers', e);
+              }
+            }
+            
+            // Construire l'interface des modifiers
+            modifiersContainer.innerHTML = '';
+            modifierGroups.forEach((group) => {
+              const groupDiv = document.createElement('div');
+              groupDiv.className = 'kp-modifier-group';
+              groupDiv.setAttribute('data-group-id', group.id);
+              
+              let html = `<h4>${group.name}</h4>`;
+              const inputType = group.selectionType === 'SINGLE' ? 'radio' : 'checkbox';
+              const groupName = `group-${group.id}`;
+              
+              group.options.forEach((opt) => {
+                const priceLabel = opt.priceDeltaCents > 0 ? ` (+${(opt.priceDeltaCents / 100).toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})})` : '';
+                const disabled = !opt.available ? 'disabled' : '';
+                html += `<label ${disabled ? 'style="opacity:0.5;cursor:not-allowed"' : ''}>
+                  <input type="${inputType}" name="${groupName}" value="${opt.id}" data-price="${opt.priceDeltaCents}" ${disabled} />
+                  ${opt.name}${priceLabel}
+                </label>`;
+              });
+              
+              groupDiv.innerHTML = html;
+              modifiersContainer.appendChild(groupDiv);
+            });
+            
+            // Gérer les événements de changement pour mise à jour prix
+            document.getElementById('kp-qty').addEventListener('change', () => updateModalPrice(itemPrice), {once: false});
+            modifiersContainer.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(inp => {
+              inp.addEventListener('change', () => updateModalPrice(itemPrice));
+            });
+            
+            document.getElementById('kp-qty-plus').onclick = () => {
+              const qty = document.getElementById('kp-qty');
+              qty.value = parseInt(qty.value) + 1;
+              updateModalPrice(itemPrice);
+            };
+            document.getElementById('kp-qty-minus').onclick = () => {
+              const qty = document.getElementById('kp-qty');
+              if (qty.value > 1) qty.value = parseInt(qty.value) - 1;
+              updateModalPrice(itemPrice);
+            };
+            
+            // Bouton Ajouter au panier
+            document.getElementById('kp-add-to-cart-btn').onclick = () => {
+              // Récupérer les options sélectionnées et valider
+              const selectedOptions = [];
+              let isValid = true;
+              
+              modifierGroups.forEach((group) => {
+                const inputs = modifiersContainer.querySelectorAll(`input[name="group-${group.id}"]`);
+                const checked = Array.from(inputs).filter(i => i.checked);
+
+                if (checked.length < group.minSelect) {
+                  alert(`${group.name}: sélectionnez au moins ${group.minSelect} option(s)`);
+                  isValid = false;
+                  return;
+                }
+                if (group.maxSelect && checked.length > group.maxSelect) {
+                  alert(`${group.name}: maximum ${group.maxSelect} option(s)`);
+                  isValid = false;
+                  return;
+                }
+
+                checked.forEach(inp => {
+                  selectedOptions.push({
+                    id: inp.value,
+                    name: inp.parentElement.textContent.trim(),
+                    priceDeltaCents: parseInt(inp.getAttribute('data-price'))
+                  });
+                });
+              });
+              
+              if (isValid) {
+                const qty = parseInt(document.getElementById('kp-qty').value);
+                addToCartDirect(itemId, itemName, itemPrice, qty, selectedOptions);
+                modal.style.display = 'none';
+              }
+            };
+            
+            updateModalPrice(itemPrice);
+            modal.style.display = 'flex';
+          }
+
+          function updateModalPrice(itemPrice) {
+            const qty = parseInt(document.getElementById('kp-qty').value);
+            const totalPrice = itemPrice * qty;
+            document.getElementById('kp-modal-total').textContent = formatPrice(totalPrice);
+          }
+
+          function addToCartDirect(itemId, itemName, itemPrice, quantity = 1, selectedOptions = []) {
+            const cart = loadCart();
+            const newLine = {
+              itemId,
+              itemName,
+              unitPrice: itemPrice,
+              quantity,
+              selectedOptions
+            };
+            
+            // Chercher une ligne identique (même item, mêmes options) pour la fusionner
+            const existingIndex = cart.findIndex(line => 
+              line.itemId === itemId && 
+              JSON.stringify(line.selectedOptions.map(o => o.id).sort()) === 
+              JSON.stringify(selectedOptions.map(o => o.id).sort())
+            );
+            
+            if (existingIndex >= 0) {
+              cart[existingIndex].quantity += quantity;
+            } else {
+              cart.push(newLine);
+            }
+            
+            saveCart(cart);
+            updateCartIcon();
+          }
+
+          function formatPrice(cents) {
+            return (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+          }
+
+          // Gestion du panier
+          document.getElementById('kp-cart-icon').addEventListener('click', function() {
+            renderCart();
+            document.getElementById('kp-cart-panel').style.display = 'flex';
+            document.getElementById('kp-modal').style.display = 'none';
+          });
+
+          document.getElementById('kp-close-cart').addEventListener('click', function() {
+            document.getElementById('kp-cart-panel').style.display = 'none';
+          });
+
+          document.getElementById('kp-checkout-btn').addEventListener('click', function() {
+            document.getElementById('kp-cart-panel').style.display = 'none';
+            document.getElementById('kp-checkout-panel').style.display = 'flex';
+            renderCheckout();
+          });
+
+          function renderCart() {
+            const cart = loadCart();
+            const container = document.getElementById('kp-cart-items');
+            const totalElement = document.getElementById('kp-cart-total-price');
+
+            if (cart.length === 0) {
+              container.innerHTML = '<p>Panier vide</p>';
+              totalElement.textContent = formatPrice(0);
+              return;
+            }
+
+            let html = '';
+            let total = 0;
+            cart.forEach((line, index) => {
+              const lineTotal = line.unitPrice * line.quantity;
+              total += lineTotal;
+              html += `
+                <div class="kp-cart-item">
+                  <div class="kp-cart-item-top">
+                    <span class="kp-cart-item-name">${line.itemName}</span>
+                    <span class="kp-cart-item-price">${formatPrice(lineTotal)}</span>
+                  </div>
+                  ${line.selectedOptions.length > 0 ? '<div class="kp-cart-item-modifiers">' + line.selectedOptions.map(o => o.name).join(', ') + '</div>' : ''}
+                  <div class="kp-cart-item-footer">
+                    <div class="kp-cart-item-qty">
+                      <button class="kp-qty-dec" data-index="${index}">−</button>
+                      <span>${line.quantity}x</span>
+                      <button class="kp-qty-inc" data-index="${index}">+</button>
+                    </div>
+                    <div class="kp-cart-item-remove" data-index="${index}">Supprimer</div>
+                  </div>
+                </div>
+              `;
+            });
+
+            container.innerHTML = html;
+            totalElement.textContent = formatPrice(total);
+
+            // Event listeners
+            container.querySelectorAll('.kp-qty-dec').forEach(btn => {
+              btn.addEventListener('click', function() {
+                const index = parseInt(this.dataset.index);
+                const cart = loadCart();
+                if (cart[index].quantity > 1) {
+                  cart[index].quantity--;
+                  saveCart(cart);
+                  renderCart();
+                }
+              });
+            });
+
+            container.querySelectorAll('.kp-qty-inc').forEach(btn => {
+              btn.addEventListener('click', function() {
+                const index = parseInt(this.dataset.index);
+                const cart = loadCart();
+                cart[index].quantity++;
+                saveCart(cart);
+                renderCart();
+              });
+            });
+
+            container.querySelectorAll('.kp-cart-item-remove').forEach(btn => {
+              btn.addEventListener('click', function() {
+                const index = parseInt(this.dataset.index);
+                const cart = loadCart();
+                cart.splice(index, 1);
+                saveCart(cart);
+                renderCart();
+                updateCartIcon();
+              });
+            });
+          }
+
+          function renderCheckout() {
+            const cart = loadCart();
+            const stepType = document.getElementById('kp-step-type');
+            const stepSummary = document.getElementById('kp-step-summary');
+            const stepConfirmation = document.getElementById('kp-step-confirmation');
+            
+            // Afficher step 1 (type)
+            stepType.style.display = 'block';
+            stepSummary.style.display = 'none';
+            stepConfirmation.style.display = 'none';
+            
+            // Gestion du changement DINE_IN / TAKEAWAY
+            const radioInputs = document.querySelectorAll('input[name="fulfillmentType"]');
+            radioInputs.forEach(radio => {
+              radio.addEventListener('change', function() {
+                if (this.value === 'DINE_IN') {
+                  document.getElementById('kp-table-input').style.display = 'block';
+                  document.getElementById('kp-name-input').style.display = 'none';
+                  document.getElementById('kp-customer-name').removeAttribute('required');
+                } else {
+                  document.getElementById('kp-table-input').style.display = 'none';
+                  document.getElementById('kp-name-input').style.display = 'block';
+                  document.getElementById('kp-customer-name').setAttribute('required', 'required');
+                }
+              });
+            });
+            
+            // Bouton Continuer (step 1 → step 2)
+            document.getElementById('kp-continue-type').onclick = () => {
+              const type = document.querySelector('input[name="fulfillmentType"]:checked').value;
+              const customerName = type === 'TAKEAWAY' ? 
+                (document.getElementById('kp-customer-name').value || '').trim() : 
+                (document.getElementById('kp-customer-name').value || 'Client').trim();
+              const tableNumber = type === 'DINE_IN' ? 
+                (document.getElementById('kp-table-number').value || '').trim() : 
+                '';
+              
+              if (type === 'TAKEAWAY' && !customerName) {
+                alert('Veuillez entrer votre nom');
+                return;
+              }
+              
+              // Afficher récapitulatif
+              stepType.style.display = 'none';
+              stepSummary.style.display = 'block';
+              renderSummary(cart, type, tableNumber, customerName);
+              
+              // Stocker pour la création de commande
+              window.kpCheckoutData = {
+                fulfillmentType: type,
+                tableNumber,
+                customerName
+              };
+            };
+            
+            // Bouton retour au panier
+            document.getElementById('kp-back-to-cart').onclick = () => {
+              document.getElementById('kp-checkout-panel').style.display = 'none';
+              document.getElementById('kp-cart-panel').style.display = 'flex';
+            };
+          }
+          
+          function renderSummary(cart, fulfillmentType, tableNumber, customerName) {
+            const summaryLines = document.getElementById('kp-summary-lines');
+            const summaryFulfillment = document.getElementById('kp-summary-fulfillment');
+            const summaryTotal = document.getElementById('kp-summary-total');
+            
+            let html = '';
+            let total = 0;
+            
+            cart.forEach(line => {
+              const lineTotal = line.unitPrice * line.quantity;
+              total += lineTotal;
+              const modifiersText = line.selectedOptions.length > 0 ?
+                line.selectedOptions.map(o => o.name).join(', ') : '';
+              html += `
+                <div class="kp-summary-item">
+                  <div class="kp-summary-item-top">
+                    <span class="kp-summary-item-name">${line.itemName}</span>
+                    <span class="kp-summary-item-price">${formatPrice(lineTotal)}</span>
+                  </div>
+                  <div class="kp-summary-item-detail">${line.quantity}x — ${formatPrice(line.unitPrice)} l'unité${modifiersText ? ' — ' + modifiersText : ''}</div>
+                </div>
+              `;
+            });
+            
+            summaryLines.innerHTML = html;
+            
+            let fulfillmentText = fulfillmentType === 'DINE_IN' ? 
+              `Sur place ${tableNumber ? '(Table ' + tableNumber + ')' : ''}` : 
+              `À emporter - ${customerName}`;
+            summaryFulfillment.innerHTML = `<div class="kp-summary-fulfillment">${fulfillmentText}</div>`;
+            
+            summaryTotal.textContent = formatPrice(total);
+            
+            // Bouton créer commande
+            document.getElementById('kp-confirm-order-btn').onclick = () => {
+              submitOrder(cart, window.kpCheckoutData);
+            };
+          }
+          
+          function submitOrder(cart, checkoutData) {
+            const lines = cart.map(line => ({
+              itemId: line.itemId,
+              quantity: line.quantity,
+              selectedOptionIds: line.selectedOptions.map(o => o.id)
+            }));
+            
+            const payload = {
+              fulfillmentType: checkoutData.fulfillmentType,
+              tableNumber: checkoutData.tableNumber || null,
+              customerName: checkoutData.customerName,
+              lines
+            };
+            
+            // POST vers endpoint public
+            fetch(`${KARTA_PAY_CONFIG.apiBaseUrl}/${KARTA_PAY_CONFIG.qrCode}/orders`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            })
+            .then(res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then(data => {
+              // Succès : afficher confirmation
+              showConfirmation(data);
+              // Clear panier
+              localStorage.removeItem(KARTA_PAY_CONFIG.cartKey);
+              updateCartIcon();
+            })
+            .catch(err => {
+              alert(`Erreur lors de la création de commande: ${err.message}`);
+              console.error(err);
+            });
+          }
+          
+          function showConfirmation(orderData) {
+            document.getElementById('kp-step-type').style.display = 'none';
+            document.getElementById('kp-step-summary').style.display = 'none';
+            document.getElementById('kp-step-confirmation').style.display = 'block';
+            
+            document.getElementById('kp-order-number').textContent = orderData.orderNumber;
+            document.getElementById('kp-confirmation-total').textContent = formatPrice(orderData.totalCents);
+            
+            // Boutons confirmation
+            document.getElementById('kp-new-order-btn').onclick = () => {
+              document.getElementById('kp-checkout-panel').style.display = 'none';
+              document.getElementById('kp-cart-panel').style.display = 'none';
+              document.getElementById('kp-modal').style.display = 'none';
+            };
+            
+            document.getElementById('kp-track-order-btn').onclick = () => {
+              trackOrder(orderData.orderNumber);
+            };
+          }
+          
+          function trackOrder(orderNumber) {
+            fetch(`${KARTA_PAY_CONFIG.apiBaseUrl}/${KARTA_PAY_CONFIG.qrCode}/orders/${orderNumber}`)
+            .then(res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then(data => {
+              const statusLabels = {
+                'PENDING': 'En attente',
+                'CONFIRMED': 'Confirmée',
+                'PREPARING': 'En préparation',
+                'READY': 'Prête',
+                'COMPLETED': 'Terminée',
+                'CANCELLED': 'Annulée'
+              };
+
+              document.getElementById('kp-tracking-info').innerHTML = `
+                <div class="kp-tracking-order-number">${data.orderNumber}</div>
+                <div class="kp-tracking-status-badge" data-status="${data.status}">${statusLabels[data.status] || data.status}</div>
+                <div class="kp-tracking-detail-row">
+                  <span>Total</span>
+                  <strong>${formatPrice(data.totalCents)}</strong>
+                </div>
+                <div class="kp-tracking-detail-row">
+                  <span>Créée le</span>
+                  <strong>${new Date(data.createdAt).toLocaleString('fr-FR')}</strong>
+                </div>
+              `;
+
+              document.getElementById('kp-checkout-panel').style.display = 'none';
+              document.getElementById('kp-tracking-panel').style.display = 'flex';
+            })
+            .catch(err => {
+              alert(`Erreur lors de la récupération du suivi: ${err.message}`);
+              console.error(err);
+            });
+          }
+
+          // Gestion modale fermeture
+          document.getElementById('kp-modal-overlay').addEventListener('click', function() {
+            document.getElementById('kp-modal').style.display = 'none';
+          });
+
+          document.getElementById('kp-modal-close').addEventListener('click', function() {
+            document.getElementById('kp-modal').style.display = 'none';
+          });
+
+          // Bouton retour de la page de suivi de commande
+          document.getElementById('kp-close-tracking').addEventListener('click', function() {
+            document.getElementById('kp-tracking-panel').style.display = 'none';
+            document.getElementById('kp-checkout-panel').style.display = 'none';
+            document.getElementById('kp-cart-panel').style.display = 'none';
+            document.getElementById('kp-modal').style.display = 'none';
+          });
+
+          // Initialisation au chargement
+          updateCartIcon();
+          /*]]>*/
+        </script>
+      </th:block>
 
       <!-- Marque Karta : retirée par l'option PREMIUM « Sans branding Karta ». -->
       <footer class="footer" th:if="${theme.branding}"><b>Karta</b></footer>

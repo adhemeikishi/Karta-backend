@@ -46,6 +46,7 @@ public class PublicMenuController {
         // Le menu peut changer à tout moment depuis le back-office : pas de cache
         // partagé, sinon un plat retiré resterait affiché.
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, must-revalidate");
+        model.addAttribute("qrCode", code);
         return renderer.render(menu.get(), model);
     }
 }

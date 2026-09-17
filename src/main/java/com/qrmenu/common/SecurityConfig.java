@@ -1,5 +1,7 @@
 package com.qrmenu.common;
 
+import com.qrmenu.account.RestaurateurAccountRepository;
+import com.qrmenu.account.RestaurateurAccountResolver;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,6 +9,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,7 +23,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Sécurité volontairement minimale pour la V1 (voir §13 / §19 du contexte projet) :
@@ -87,12 +90,22 @@ public class SecurityConfig {
      * Comptes acceptés par le Basic Auth.
      *
      * Le compte d'administration existe toujours et garde exactement le rôle et les
-     * droits qu'il avait. Un compte <strong>restaurateur</strong> s'y ajoute lorsqu'il
-     * est configuré ; il porte le rôle {@code RESTAURATEUR}, jamais {@code ADMIN}, et son
-     * périmètre est imposé par {@link RestaurateurScopeFilter}.
+     * droits qu'il avait. Un compte <strong>restaurateur</strong> historique, unique,
+     * s'y ajoute lorsqu'il est configuré — inchangé, toujours in-memory.
+     *
+     * <p>Tout autre compte RESTAURATEUR (créé par inscription libre-service,
+     * {@code POST /api/public/signup}) n'est PAS in-memory : il vit dans
+     * {@code restaurateur_accounts} (voir {@link com.qrmenu.account.RestaurateurAccount}).
+     * C'est l'option la moins risquée pour l'existant : le chemin ADMIN et le chemin
+     * restaurateur historique restent exactement ce qu'ils étaient, tester
+     * {@code inMemory.loadUserByUsername} en premier ne change rien pour eux ; seul un nom
+     * qu'ils ne connaissent pas déclenche une lecture en base.
      */
     @Bean
-    public InMemoryUserDetailsManager userDetailsService(PasswordEncoder passwordEncoder) {
+    public UserDetailsService userDetailsService(
+            PasswordEncoder passwordEncoder,
+            RestaurateurAccountRepository accountRepository
+    ) {
         List<UserDetails> users = new ArrayList<>();
         users.add(User.withUsername(adminUsername)
                 .password(passwordEncoder.encode(adminPassword))
@@ -106,7 +119,20 @@ public class SecurityConfig {
                     .build());
         }
 
-        return new InMemoryUserDetailsManager(users);
+        InMemoryUserDetailsManager inMemory = new InMemoryUserDetailsManager(users);
+
+        return username -> {
+            try {
+                return inMemory.loadUserByUsername(username);
+            } catch (UsernameNotFoundException notInMemory) {
+                return accountRepository.findByEmail(RestaurateurAccountResolver.normalize(username))
+                        .map(account -> User.withUsername(account.getEmail())
+                                .password(account.getPasswordHash())
+                                .roles("RESTAURATEUR")
+                                .build())
+                        .orElseThrow(() -> notInMemory);
+            }
+        };
     }
 
     @Bean
@@ -118,11 +144,15 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/admin/**", configuration);
+        source.registerCorsConfiguration("/api/public/**", configuration);
         return source;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            RestaurateurAccountResolver restaurateurAccountResolver
+    ) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // API stateless, pas de formulaire HTML côté admin en V1
                 .cors(Customizer.withDefaults())
@@ -138,13 +168,14 @@ public class SecurityConfig {
                 )
                 .httpBasic(Customizer.withDefaults());
 
-        if (restaurateurAccountConfigured()) {
-            // Après AuthorizationFilter : l'utilisateur est authentifié et son rôle
-            // validé, il reste à vérifier que la ressource visée est bien la sienne.
-            http.addFilterAfter(
-                    new RestaurateurScopeFilter(UUID.fromString(restaurateurRestaurantId)),
-                    AuthorizationFilter.class);
-        }
+        // Toujours enregistré, qu'un compte restaurateur historique soit configuré ou non :
+        // un compte issu de l'inscription libre-service peut exister même en son absence.
+        // Sans effet sur un ADMIN ou un anonyme (voir RestaurateurScopeFilter.isRestaurateur) —
+        // après AuthorizationFilter, l'utilisateur est authentifié et son rôle validé, il
+        // reste à vérifier que la ressource visée est bien la sienne.
+        http.addFilterAfter(
+                new RestaurateurScopeFilter(restaurateurAccountResolver),
+                AuthorizationFilter.class);
 
         return http.build();
     }

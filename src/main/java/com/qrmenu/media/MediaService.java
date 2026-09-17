@@ -130,7 +130,13 @@ public class MediaService {
         }
     }
 
-    private void validatePdf(byte[] content, String declaredContentType) {
+    /**
+     * Contrôles de taille, de type déclaré et de signature d'un PDF.
+     *
+     * Public : réutilisé tel quel par la démo publique KartaAI ({@code MenuDemoService}),
+     * qui valide un PDF sans jamais le stocker.
+     */
+    public void validatePdf(byte[] content, String declaredContentType) {
         if (content == null || content.length == 0) {
             throw new InvalidUploadException("Le fichier est vide.");
         }

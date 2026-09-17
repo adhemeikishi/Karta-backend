@@ -87,6 +87,11 @@ kartaai:
   # un thread indéfiniment.
   timeout-seconds: ${KARTA_AI_TIMEOUT_SECONDS:120}
   max-tokens: ${KARTA_AI_MAX_TOKENS:16000}
+  # Démo publique /api/public/menu-demo (page /create/design, sans compte ni auth) :
+  # quota par IP, en mémoire (une seule instance de backend). Chaque appel coûte du Gemini
+  # réel sur une route ouverte à tout visiteur, d'où un plafond bas par défaut.
+  demo:
+    max-per-hour: ${KARTA_AI_DEMO_MAX_PER_HOUR:5}
 
 # Stockage des fichiers uploadés (PDF de menu). JAMAIS en base de données.
 # AUCUNE valeur par défaut ici volontairement : à fournir via l'environnement

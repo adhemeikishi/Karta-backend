@@ -1,5 +1,6 @@
 package com.qrmenu.common;
 
+import com.qrmenu.account.RestaurateurAccountResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,10 +54,10 @@ public class RestaurateurScopeFilter extends OncePerRequestFilter {
     /** Identité : lisible par tout compte authentifié, c'est elle qui dit qui l'on est. */
     private static final String IDENTITY_PATH = "/api/admin/me";
 
-    private final UUID ownedRestaurantId;
+    private final RestaurateurAccountResolver accountResolver;
 
-    public RestaurateurScopeFilter(UUID ownedRestaurantId) {
-        this.ownedRestaurantId = ownedRestaurantId;
+    public RestaurateurScopeFilter(RestaurateurAccountResolver accountResolver) {
+        this.accountResolver = accountResolver;
     }
 
     @Override
@@ -72,7 +73,19 @@ public class RestaurateurScopeFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (isAllowed(request)) {
+        // Résolu à chaque requête, jamais fixé au démarrage : un compte issu de
+        // l'inscription libre-service n'a pas de restaurant connu tant que l'application
+        // tourne — il faut donc regarder qui est authentifié, pas relire une config figée.
+        UUID ownedRestaurantId = accountResolver.resolveRestaurantId(auth.getName()).orElse(null);
+        if (ownedRestaurantId == null) {
+            // Rôle RESTAURATEUR authentifié mais aucun restaurant résolvable : ne devrait
+            // jamais arriver (voir SignupService, RestaurateurAccountResolver), mais un
+            // compte sans périmètre est un trou — on refuse plutôt que de deviner.
+            response.sendError(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
+        if (isAllowed(request, ownedRestaurantId)) {
             chain.doFilter(request, response);
         } else {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
@@ -95,7 +108,7 @@ public class RestaurateurScopeFilter extends OncePerRequestFilter {
         return restaurateur;
     }
 
-    private boolean isAllowed(HttpServletRequest request) {
+    private boolean isAllowed(HttpServletRequest request, UUID ownedRestaurantId) {
         String path = request.getRequestURI();
 
         if (IDENTITY_PATH.equals(path)) {
@@ -116,7 +129,7 @@ public class RestaurateurScopeFilter extends OncePerRequestFilter {
         }
 
         String suffix = matcher.group(2) == null ? "" : matcher.group(2);
-        boolean commercial = suffix.isEmpty() || "/offer".equals(suffix);
+        boolean commercial = suffix.isEmpty() || "/offer".equals(suffix) || "/karta-pay".equals(suffix);
         if (commercial) {
             // Lire sa propre fiche est légitime ; la renommer, changer son offre ou la
             // supprimer relèvent de Karta.

@@ -1,10 +1,12 @@
 package com.qrmenu.admin;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.qrmenu.account.RestaurateurAccountResolver;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 /**
  * Identité du compte connecté.
@@ -27,22 +29,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class IdentityController {
 
-    /** Restaurant du compte restaurateur. Vide tant qu'aucun compte n'est configuré. */
-    private final String restaurateurRestaurantId;
+    /**
+     * Résout le restaurant du compte authentifié, qu'il vienne du compte restaurateur
+     * historique (configuration statique) ou d'un compte créé par inscription
+     * libre-service (en base) — voir {@link RestaurateurAccountResolver}.
+     */
+    private final RestaurateurAccountResolver accountResolver;
 
-    public IdentityController(
-            @Value("${restaurateur.restaurant-id:}") String restaurateurRestaurantId
-    ) {
-        this.restaurateurRestaurantId = restaurateurRestaurantId;
+    public IdentityController(RestaurateurAccountResolver accountResolver) {
+        this.accountResolver = accountResolver;
     }
 
     @GetMapping("/api/admin/me")
     public IdentityResponse me(Authentication authentication) {
         boolean admin = hasRole(authentication, "ROLE_ADMIN");
-        return new IdentityResponse(
-                authentication.getName(),
-                admin ? "ADMIN" : "RESTAURATEUR",
-                admin || restaurateurRestaurantId.isBlank() ? null : restaurateurRestaurantId);
+        String restaurantId = admin
+                ? null
+                : accountResolver.resolveRestaurantId(authentication.getName())
+                        .map(UUID::toString)
+                        .orElse(null);
+        return new IdentityResponse(authentication.getName(), admin ? "ADMIN" : "RESTAURATEUR", restaurantId);
     }
 
     private boolean hasRole(Authentication authentication, String role) {

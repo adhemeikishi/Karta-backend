@@ -32,6 +32,35 @@ public class Restaurant {
     @Column(name = "onboarding_completed_at")
     private OffsetDateTime onboardingCompletedAt;
 
+    /**
+     * Interrupteur commercial Karta Pay (commande + paiement sur place), au même titre
+     * que {@link #offer} : ADMIN uniquement (voir RestaurantAdminController et
+     * RestaurateurScopeFilter), jamais togglé par le restaurateur lui-même.
+     */
+    @Column(name = "karta_pay_enabled", nullable = false)
+    private boolean kartaPayEnabled;
+
+    /**
+     * Abonnement payé, indépendamment de {@link #offer} : {@code offer} dit QUEL niveau de
+     * fonctionnalités le restaurant utilise, {@code subscriptionActive} dit s'il a payé pour
+     * l'utiliser. Un compte créé par inscription libre-service a un restaurant tout de suite
+     * exploitable (offre choisie, QR généré) mais {@code subscriptionActive = false} tant
+     * qu'aucun paiement n'a eu lieu — voir {@code SignupService}.
+     *
+     * <p>Tout restaurant créé avant cette notion (back-office, seeding) reste {@code true} :
+     * il n'y avait jusqu'ici aucun état "sans abonnement", donc aucune régression à leur faire
+     * porter.
+     */
+    @Column(name = "subscription_active", nullable = false)
+    private boolean subscriptionActive;
+
+    /**
+     * Compteur de numérotation des commandes Karta Pay, propre à ce restaurant. Incrémenté
+     * à chaque commande (voir {@link #nextOrderNumber()}), jamais remis à zéro.
+     */
+    @Column(name = "order_sequence", nullable = false)
+    private int orderSequence;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -55,9 +84,20 @@ public class Restaurant {
      * « son » restaurant par configuration, sans table de liaison ni migration.
      */
     public Restaurant(UUID id, String name, RestaurantOffer offer) {
+        this(id, name, offer, true);
+    }
+
+    /**
+     * Constructeur complet : seule l'inscription libre-service ({@code SignupService})
+     * a besoin de poser {@code subscriptionActive} à {@code false} dès la création. Tous
+     * les autres chemins (back-office, seeding) passent par les constructeurs ci-dessus,
+     * qui l'imposent à {@code true} — comportement strictement inchangé pour eux.
+     */
+    public Restaurant(UUID id, String name, RestaurantOffer offer, boolean subscriptionActive) {
         this.id = id;
         this.name = name;
         this.offer = offer;
+        this.subscriptionActive = subscriptionActive;
         OffsetDateTime now = OffsetDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
@@ -86,6 +126,29 @@ public class Restaurant {
 
     public boolean isOnboardingCompleted() {
         return onboardingCompletedAt != null;
+    }
+
+    public void changeKartaPayEnabled(boolean enabled) {
+        this.kartaPayEnabled = enabled;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    public boolean isKartaPayEnabled() {
+        return kartaPayEnabled;
+    }
+
+    public boolean isSubscriptionActive() {
+        return subscriptionActive;
+    }
+
+    /**
+     * Numéro lisible de la prochaine commande ("A0001", "A0002"...), unique et
+     * strictement croissant pour ce restaurant, jamais remis à zéro.
+     */
+    public String nextOrderNumber() {
+        this.orderSequence++;
+        this.updatedAt = OffsetDateTime.now();
+        return String.format("A%04d", orderSequence);
     }
 
     public OffsetDateTime getOnboardingCompletedAt() {

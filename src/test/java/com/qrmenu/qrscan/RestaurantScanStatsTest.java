@@ -51,9 +51,14 @@ class RestaurantScanStatsTest {
 
     /** Insère un scan daté de {@code daysAgo} jours, à midi (loin de toute frontière de jour). */
     private void recordScanDaysAgo(UUID qrCodeId, int daysAgo) {
+        recordScanAt(qrCodeId, daysAgo, 12);
+    }
+
+    /** Insère un scan daté de {@code daysAgo} jours, à l'heure {@code hour} (0-23). */
+    private void recordScanAt(UUID qrCodeId, int daysAgo, int hour) {
         OffsetDateTime when = LocalDate.now(ZoneId.systemDefault())
                 .minusDays(daysAgo)
-                .atTime(12, 0)
+                .atTime(hour, 0)
                 .atZone(ZoneId.systemDefault())
                 .toOffsetDateTime();
         jdbc.update(
@@ -212,5 +217,45 @@ class RestaurantScanStatsTest {
         long seriesTotal = stats.daily().stream().mapToLong(DailyScans::scans).sum();
         assertThat(stats.last30Days()).isEqualTo(seriesTotal);
         assertThat(stats.today()).isEqualTo(scansOn(stats, 0));
+    }
+
+    // ------------------------------------------------------------------ heures de pointe
+
+    @Test
+    void hourlyDistributionCoversAllTwentyFourHoursEvenWhenEmpty() {
+        Restaurant r = restaurant();
+        qrFor(r);
+
+        var distribution = qrScanService.hourlyDistribution(r.getId());
+
+        assertThat(distribution).hasSize(24);
+        assertThat(distribution).allSatisfy(h -> assertThat(h.scans()).isZero());
+    }
+
+    @Test
+    void hourlyDistributionGroupsScansByHourOfDay() {
+        Restaurant r = restaurant();
+        QrCode qr = qrFor(r);
+        recordScanAt(qr.getId(), 0, 9);
+        recordScanAt(qr.getId(), 1, 9);
+        recordScanAt(qr.getId(), 2, 20);
+
+        var distribution = qrScanService.hourlyDistribution(r.getId());
+
+        assertThat(distribution.get(9).scans()).isEqualTo(2);
+        assertThat(distribution.get(20).scans()).isEqualTo(1);
+        assertThat(distribution.stream().mapToLong(QrScanService.HourlyScans::scans).sum()).isEqualTo(3);
+    }
+
+    @Test
+    void hourlyDistributionExcludesScansOutsideTheThirtyDayWindow() {
+        Restaurant r = restaurant();
+        QrCode qr = qrFor(r);
+        recordScanAt(qr.getId(), 9, 8);
+        recordScanAt(qr.getId(), 45, 8); // hors fenêtre de 30 jours
+
+        var distribution = qrScanService.hourlyDistribution(r.getId());
+
+        assertThat(distribution.get(8).scans()).isEqualTo(1);
     }
 }

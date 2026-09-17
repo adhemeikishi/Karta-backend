@@ -1,5 +1,8 @@
 package com.qrmenu.common;
 
+import com.qrmenu.menu.MenuDtos.SaveCategoryRequest;
+import com.qrmenu.menu.MenuDtos.SaveItemRequest;
+import com.qrmenu.menu.MenuService;
 import com.qrmenu.restaurant.Restaurant;
 import com.qrmenu.restaurant.RestaurantOffer;
 import com.qrmenu.restaurant.RestaurantRepository;
@@ -12,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
@@ -48,6 +52,9 @@ class RestaurateurScopeTest {
     @Autowired
     private RestaurantRepository restaurantRepository;
 
+    @Autowired
+    private MenuService menuService;
+
     private UUID otherRestaurantId;
 
     private static org.springframework.test.web.servlet.request.RequestPostProcessor resto() {
@@ -78,6 +85,8 @@ class RestaurateurScopeTest {
                 "/api/admin/restaurants/" + otherRestaurantId + "/menu/design",
                 "/api/admin/restaurants/" + otherRestaurantId + "/qr-codes",
                 "/api/admin/restaurants/" + otherRestaurantId + "/stats",
+                "/api/admin/restaurants/" + otherRestaurantId + "/orders",
+                "/api/admin/restaurants/" + otherRestaurantId + "/karta-pay/dashboard",
         }) {
             mockMvc.perform(get(path).with(resto()))
                     .andExpect(status().isForbidden());
@@ -121,6 +130,15 @@ class RestaurateurScopeTest {
                 .andExpect(status().isForbidden());
     }
 
+    /** Interrupteur commercial Karta Pay, au même titre que l'offre : ADMIN uniquement. */
+    @Test
+    void cannotToggleKartaPayEvenOnItsOwnRestaurant() throws Exception {
+        mockMvc.perform(put("/api/admin/restaurants/" + OWNED + "/karta-pay").with(resto())
+                        .contentType("application/json")
+                        .content("{\"enabled\":true}"))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void cannotReachQrCodeEndpointsWhoseOwnerIsNotInTheUrl() throws Exception {
         mockMvc.perform(get("/api/admin/qr-codes/" + UUID.randomUUID()).with(resto()))
@@ -141,6 +159,35 @@ class RestaurateurScopeTest {
         mockMvc.perform(get("/api/admin/restaurants/" + OWNED + "/menu/design").with(resto()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.presets.length()").value(5));
+    }
+
+    /** Karta Pay : commandes et groupes d'options de SON restaurant, contrairement à /karta-pay lui-même. */
+    @Test
+    void reachesItsOwnOrdersAndModifierGroups() throws Exception {
+        var menu = menuService.saveStructure(OWNED, List.of(
+                new SaveCategoryRequest(null, "Burgers", null, 0, true, List.of(
+                        new SaveItemRequest(null, "Cheeseburger", null, 1290, "EUR", null, 0, true)))));
+        UUID itemId = menu.structure().categories().get(0).items().get(0).id();
+
+        mockMvc.perform(get("/api/admin/restaurants/" + OWNED + "/orders").with(resto()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/restaurants/" + OWNED + "/karta-pay/dashboard").with(resto()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.topItems").isArray());
+
+        mockMvc.perform(put("/api/admin/restaurants/" + OWNED + "/menu/items/" + itemId + "/modifier-groups")
+                        .with(resto())
+                        .contentType("application/json")
+                        .content("{\"groups\":[{\"name\":\"Cuisson\",\"selectionType\":\"SINGLE\",\"minSelect\":1,"
+                                + "\"options\":[{\"name\":\"Saignant\"}]}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Cuisson"));
+
+        mockMvc.perform(get("/api/admin/restaurants/" + OWNED + "/menu/items/" + itemId + "/modifier-groups")
+                        .with(resto()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Cuisson"));
     }
 
     @Test

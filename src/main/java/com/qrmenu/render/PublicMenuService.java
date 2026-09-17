@@ -1,6 +1,12 @@
 package com.qrmenu.render;
 
 import com.qrmenu.common.PublicUrlBuilder;
+import com.qrmenu.kartapay.ModifierDtos.ModifierGroupResponse;
+import com.qrmenu.kartapay.ModifierDtos.ModifierOptionResponse;
+import com.qrmenu.kartapay.ModifierGroup;
+import com.qrmenu.kartapay.ModifierGroupRepository;
+import com.qrmenu.kartapay.ModifierOption;
+import com.qrmenu.kartapay.ModifierOptionRepository;
 import com.qrmenu.menu.Menu;
 import com.qrmenu.menu.MenuCategory;
 import com.qrmenu.menu.MenuCategoryRepository;
@@ -55,6 +61,8 @@ public class PublicMenuService {
     private final MenuRepository menuRepository;
     private final MenuCategoryRepository categoryRepository;
     private final MenuItemRepository itemRepository;
+    private final ModifierGroupRepository modifierGroupRepository;
+    private final ModifierOptionRepository modifierOptionRepository;
     private final RestaurantService restaurantService;
     private final PublicUrlBuilder urlBuilder;
     private final MenuThemeResolver themeResolver;
@@ -64,6 +72,8 @@ public class PublicMenuService {
             MenuRepository menuRepository,
             MenuCategoryRepository categoryRepository,
             MenuItemRepository itemRepository,
+            ModifierGroupRepository modifierGroupRepository,
+            ModifierOptionRepository modifierOptionRepository,
             RestaurantService restaurantService,
             PublicUrlBuilder urlBuilder,
             MenuThemeResolver themeResolver
@@ -72,6 +82,8 @@ public class PublicMenuService {
         this.menuRepository = menuRepository;
         this.categoryRepository = categoryRepository;
         this.itemRepository = itemRepository;
+        this.modifierGroupRepository = modifierGroupRepository;
+        this.modifierOptionRepository = modifierOptionRepository;
         this.restaurantService = restaurantService;
         this.urlBuilder = urlBuilder;
         this.themeResolver = themeResolver;
@@ -160,6 +172,9 @@ public class PublicMenuService {
                 .toList();
 
         Map<UUID, List<MenuItem>> itemsByCategory = loadItems(categories);
+        Map<UUID, List<ModifierGroupResponse>> modifierGroupsByItem = restaurant.isKartaPayEnabled()
+                ? loadModifierGroups(itemsByCategory.values().stream().flatMap(List::stream).toList())
+                : Map.of();
 
         List<PublicCategory> publicCategories = categories.stream()
                 .map(category -> {
@@ -168,7 +183,7 @@ public class PublicMenuService {
                             translated(t == null ? null : t.name(), category.getName()),
                             translated(t == null ? null : t.description(), category.getDescription()),
                             itemsByCategory.getOrDefault(category.getId(), List.of()).stream()
-                                    .map(item -> toPublicItem(item, language, photos))
+                                    .map(item -> toPublicItem(item, language, photos, modifierGroupsByItem))
                                     .toList());
                 })
                 .toList();
@@ -212,7 +227,8 @@ public class PublicMenuService {
                 new PublicLanguage(language.code(), language.shortLabel()),
                 languages,
                 MenuLabels.of(language),
-                categories);
+                categories,
+                restaurant.isKartaPayEnabled());
     }
 
     /** Une traduction absente ou vide retombe sur le texte de base — jamais une chaîne vide. */
@@ -229,16 +245,56 @@ public class PublicMenuService {
                 .collect(Collectors.groupingBy(MenuItem::getCategoryId, LinkedHashMap::new, Collectors.toList()));
     }
 
-    private PublicItem toPublicItem(MenuItem item, MenuLanguage language, boolean photos) {
+    private PublicItem toPublicItem(
+            MenuItem item,
+            MenuLanguage language,
+            boolean photos,
+            Map<UUID, List<ModifierGroupResponse>> modifierGroupsByItem
+    ) {
         Translation t = item.getTranslations().get(language.code());
         return new PublicItem(
+                item.getId(),
                 translated(t == null ? null : t.name(), item.getName()),
                 translated(t == null ? null : t.description(), item.getDescription()),
                 item.getPriceCents(),
                 item.getCurrency(),
                 formatPrice(item.getPriceCents(), item.getCurrency()),
                 photos && item.getImageAssetId() != null ? urlBuilder.forAsset(item.getImageAssetId()) : null,
-                item.isAvailable());
+                item.isAvailable(),
+                modifierGroupsByItem.getOrDefault(item.getId(), List.of()));
+    }
+
+    /** Comme {@code ModifierGroupService.load}, mais en un aller-retour pour tous les produits du menu. */
+    private Map<UUID, List<ModifierGroupResponse>> loadModifierGroups(List<MenuItem> items) {
+        if (items.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> itemIds = items.stream().map(MenuItem::getId).toList();
+        List<ModifierGroup> groups = modifierGroupRepository.findByItemIdInOrderBySortOrderAscNameAsc(itemIds);
+        if (groups.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> groupIds = groups.stream().map(ModifierGroup::getId).toList();
+        Map<UUID, List<ModifierOption>> optionsByGroup = modifierOptionRepository
+                .findByGroupIdInOrderBySortOrderAscNameAsc(groupIds).stream()
+                .collect(Collectors.groupingBy(ModifierOption::getGroupId, LinkedHashMap::new, Collectors.toList()));
+        return groups.stream().collect(Collectors.groupingBy(
+                ModifierGroup::getItemId,
+                LinkedHashMap::new,
+                Collectors.mapping(group -> toModifierGroupResponse(group, optionsByGroup), Collectors.toList())));
+    }
+
+    private ModifierGroupResponse toModifierGroupResponse(
+            ModifierGroup group,
+            Map<UUID, List<ModifierOption>> optionsByGroup
+    ) {
+        List<ModifierOptionResponse> options = optionsByGroup.getOrDefault(group.getId(), List.of()).stream()
+                .map(o -> new ModifierOptionResponse(
+                        o.getId(), o.getName(), o.getPriceDeltaCents(), o.isAvailable(), o.getSortOrder()))
+                .toList();
+        return new ModifierGroupResponse(
+                group.getId(), group.getName(), group.getSelectionType(),
+                group.getMinSelect(), group.getMaxSelect(), group.getSortOrder(), options);
     }
 
     /**

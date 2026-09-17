@@ -20,6 +20,18 @@ public class RestaurantService {
         return restaurantRepository.save(restaurant);
     }
 
+    /**
+     * Création par inscription libre-service ({@code SignupService}) : le restaurant est
+     * immédiatement exploitable (offre posée, QR généré par l'appelant) mais sans abonnement
+     * payé. Karta ne transforme jamais un compte gratuit en payant automatiquement — seul un
+     * futur parcours de paiement (Phase 3) pourra faire passer {@code subscriptionActive} à
+     * {@code true}.
+     */
+    public Restaurant createWithoutSubscription(String name, RestaurantOffer offer) {
+        Restaurant restaurant = new Restaurant(UUID.randomUUID(), name, offer, false);
+        return restaurantRepository.save(restaurant);
+    }
+
     public Restaurant rename(UUID id, String newName) {
         Restaurant restaurant = getOrThrow(id);
         restaurant.rename(newName);
@@ -29,6 +41,12 @@ public class RestaurantService {
     public Restaurant changeOffer(UUID id, RestaurantOffer offer) {
         Restaurant restaurant = getOrThrow(id);
         restaurant.changeOffer(offer);
+        return restaurantRepository.save(restaurant);
+    }
+
+    public Restaurant changeKartaPayEnabled(UUID id, boolean enabled) {
+        Restaurant restaurant = getOrThrow(id);
+        restaurant.changeKartaPayEnabled(enabled);
         return restaurantRepository.save(restaurant);
     }
 
